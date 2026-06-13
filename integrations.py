@@ -106,6 +106,8 @@ def _sf_default_map(p, project_code):
     return {
         "Name": (p.get("dealName") or "Deal Registration")[:80],
         "Project_Code__c": project_code,
+        "Excalibur_ID__c": p.get("excaliburId"),
+        "SFDC_Opportunity_ID__c": p.get("sfdcId"),
         "Customer_Company__c": p.get("company"),
         "Customer_Website__c": p.get("website"),
         "Customer_Business_Unit__c": p.get("businessUnit"),

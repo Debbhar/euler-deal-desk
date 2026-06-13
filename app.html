@@ -216,7 +216,7 @@ tr.prow:hover{background:var(--ivory);cursor:pointer}
     <div class="login-logos">
       <span id="loginClaude"></span>
       <span class="sep"></span>
-      <span class="hcltech-wm" style="font-size:20px">HCLTech<sup>™</sup></span>
+      <span id="loginHcl"></span>
     </div>
     <h1>Claude Partner Network</h1>
     <p>Deal Desk · Partner Portal — sign in with your HCLTech identity</p>
@@ -256,6 +256,7 @@ tr.prow:hover{background:var(--ivory);cursor:pointer}
     <div class="topbar">
       <div class="tb-left">
         <div class="cpn"><span id="topClaude"></span><span class="txt"><b>Claude</b><small>Partner Network</small></span></div>
+        <span id="topHcl" style="padding-left:14px;border-left:1px solid var(--line)"></span>
         <span class="partner-chip">HCL TECHNOLOGIES LIMITED (Partner)</span>
       </div>
       <div class="tb-right">
@@ -314,11 +315,7 @@ tr.prow:hover{background:var(--ivory);cursor:pointer}
 <div class="overlay hide" id="modal">
   <div class="modal">
     <div class="modal-h"><h2>New Project</h2><button class="x" id="mClose">✕</button></div>
-    <div class="stepper" id="stepper">
-      <div class="stp active" data-s="0"><span class="c">1</span> Details</div><span class="bar"></span>
-      <div class="stp" data-s="1"><span class="c">2</span> Service Type</div><span class="bar"></span>
-      <div class="stp" data-s="2"><span class="c">3</span> Fields</div>
-    </div>
+    <div class="stepper" id="stepper"></div>
     <div class="modal-b" id="modalBody"></div>
     <div class="modal-f">
       <div class="lf">
@@ -345,9 +342,19 @@ function claudeLogo(size){
     rays.push(`<line x1="${50+x*14}" y1="${50+y*14}" x2="${50+x*44}" y2="${50+y*44}" stroke="#D97757" stroke-width="7" stroke-linecap="round"/>`);}
   return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" aria-label="Claude">${rays.join('')}</svg>`;
 }
+// HCLTech logo — uses the official asset (drop hcltech-logo.svg or .png in this folder);
+// falls back to a faithful wordmark if the asset isn't present.
+function hcltechLogo(h){
+  const wm=`<span class='hcltech-wm' style='font-size:${Math.round(h*0.92)}px;line-height:1'>HCLTech<sup>™</sup></span>`;
+  return `<img src="hcltech-logo.svg" alt="HCLTech" style="height:${h}px;display:block;object-fit:contain" `+
+         `onerror="this.onerror=null;var s=document.createElement('span');s.innerHTML=`+
+         `&quot;${wm.replace(/"/g,'&quot;').replace(/'/g,'&#39;')}&quot;;this.replaceWith(s.firstChild)">`;
+}
 document.getElementById('loginClaude').innerHTML=claudeLogo(34);
 document.getElementById('topClaude').innerHTML=claudeLogo(24);
 document.getElementById('eulerMark').innerHTML=claudeLogo(18);
+document.getElementById('loginHcl').innerHTML=hcltechLogo(26);
+document.getElementById('topHcl').innerHTML=hcltechLogo(22);
 
 /* ============================ STATE ============================ */
 let USER=null, TAB='all', PROJECTS=[], DRAFT_ID=null;
@@ -377,15 +384,19 @@ const SERVICES=[
 ];
 const USE_CASES=['Software Development','DevOps & Infrastructure Operations','Data Analysis & Business Intelligence','Document Processing & Extraction','Knowledge Retrieval & Enterprise Search','Content Creation & Copywriting','Customer Support & Service Operations','Sales & Revenue Operations','Conversation & Meeting Intelligence','Research & Intelligence','Cybersecurity & Threat Detection','Trust & Safety / Platform Integrity','Compliance & Regulatory','Education & Learning','Business Process & Operations','Companionship & General Conversation','Personal AI Assistant'];
 const PRODUCTS=['Claude Cowork','Claude Code','Claude API','Claude for Enterprise','Claude in Chrome','MCP / Agents'];
+const STEPS=['Details','Service Type','Commercials','Scope','Contacts','Review'];
+const LAST=STEPS.length-1;
+const DIAL_CODES=['+1','+44','+91','+61','+65','+971','+49','+33','+81','+86','+852','+31','+46','+47','+34','+39','+55','+27','+254','+966'];
 
 /* form model */
 let F={};
 function blankForm(){return {dealName:'',description:'',partner:'HCL TECHNOLOGIES LIMITED (Partner)',
+  excaliburId:'', sfdcId:'', linkedDeal:'',
   services:[], status:'New', currency:'USD', tcv:'', deliveryModel:'Assessment / Discovery',
-  company:'',website:'',businessUnit:'', projectDescription:'', products:[], rolloutPlan:'',
+  company:'',website:'',businessUnit:'', projectDescription:'', products:[], productNotes:{}, rolloutPlan:'',
   useCases:[{cat:'Software Development',kpi:''}], customerUseCase:'Software Development',
-  pocName:'',pocEmail:'',pocTitle:'',pocPhone:'', leadName:'',leadEmail:'',
-  startDate:'',endDate:'', linkedDeal:''};}
+  pocName:'',pocEmail:'',pocTitle:'',pocPhoneCountry:'+1',pocPhone:'', leadName:'',leadEmail:'',
+  startDate:'',endDate:''};}
 
 /* ============================ LOGIN / SSO ============================ */
 let CONFIG={sso_mode:'mock'};
@@ -463,18 +474,33 @@ function openModal(){$('#modal').classList.remove('hide');
   $('.modal-h h2').textContent=EDIT_CODE?'Edit Project':'New Project';
   renderStep();}
 function closeModal(){$('#modal').classList.add('hide');}
+function buildStepper(){
+  $('#stepper').innerHTML=STEPS.map((t,i)=>
+    `<div class="stp" data-s="${i}"><span class="c">${i+1}</span> ${t}</div>`+(i<LAST?'<span class="bar"></span>':'')
+  ).join('');
+  document.querySelectorAll('.stp').forEach(s=>s.onclick=()=>{const t=+s.dataset.s;collect();
+    if(t<step||validateUpTo(t)){step=t;renderStep();}});
+}
 function setStepper(){document.querySelectorAll('.stp').forEach(s=>{const i=+s.dataset.s;s.classList.toggle('active',i===step);s.classList.toggle('done',i<step);});
-  $('#mBack').classList.toggle('hide',step===0);$('#mNext').classList.toggle('hide',step===2);$('#mSubmit').classList.toggle('hide',step!==2);
-  $('#mSubmit').textContent=EDIT_CODE?'Save changes':'Create project';}
+  $('#mBack').classList.toggle('hide',step===0);
+  $('#mNext').classList.toggle('hide',step===LAST);
+  $('#mSubmit').classList.toggle('hide',step!==LAST);
+  $('#mSubmit').textContent=EDIT_CODE?'Save changes':'Submit registration';
+  $('#mNext').textContent=(step===LAST-1?'Review →':'Next →');}
 $('#mBack').onclick=()=>{collect();if(step>0){step--;renderStep();}};
-$('#mNext').onclick=()=>{collect();if(validate()){if(step<2){step++;renderStep();}}};
+$('#mNext').onclick=()=>{collect();if(validate()){if(step<LAST){step++;renderStep();}}};
 
 function renderStep(){
+  if(!$('#stepper').children.length) buildStepper();
   setStepper();
   const b=$('#modalBody');
-  if(step===0) b.innerHTML=stepDetails();
+  if(step===0){b.innerHTML=stepDetails();}
   if(step===1){b.innerHTML=stepServices();wireServices();}
-  if(step===2){b.innerHTML=stepFields();wireFields();}
+  if(step===2){b.innerHTML=stepCommercials();wireCommercials();}
+  if(step===3){b.innerHTML=stepScope();wireScope();}
+  if(step===4){b.innerHTML=stepContacts();}
+  if(step===5){b.innerHTML=stepReview();}
+  b.scrollTop=0;
 }
 
 /* ---- step 1: Details ---- */
@@ -482,7 +508,12 @@ function stepDetails(){return `
   <div class="fld"><label>Project / Deal Name <span class="req">*</span></label><input id="f_dealName" value="${esc(F.dealName)}" placeholder="e.g. Carrix — Transformation"></div>
   <div class="fld"><label>Partner</label><input value="${esc(F.partner)}" readonly style="color:var(--slate)"></div>
   <div class="fld"><label>Description</label><textarea id="f_description" placeholder="Short description of the engagement…">${esc(F.description)}</textarea></div>
-  <div class="fld"><label>Linked Deal ID</label><input id="f_linkedDeal" value="${esc(F.linkedDeal)}" placeholder="CRM / opportunity ID (optional)"></div>`;}
+  <div class="sec-tag">Reference IDs</div>
+  <div class="row2">
+    <div class="fld"><label>Excalibur ID</label><input id="f_excaliburId" value="${esc(F.excaliburId)}" placeholder="e.g. EXC-000123"><div class="hint">HCLTech Excalibur opportunity ID</div></div>
+    <div class="fld"><label>SFDC Opportunity ID</label><input id="f_sfdcId" value="${esc(F.sfdcId)}" placeholder="e.g. 006XXXXXXXXXXXX"><div class="hint">Salesforce 15/18-char ID</div></div>
+  </div>
+  <div class="fld"><label>Linked Deal ID</label><input id="f_linkedDeal" value="${esc(F.linkedDeal)}" placeholder="Other CRM / opportunity ID (optional)"></div>`;}
 
 /* ---- step 2: Service Type (14-service multi-select) ---- */
 function stepServices(){return `
@@ -515,15 +546,9 @@ function wireServices(){
   q.oninput=draw;draw();drawSel();
 }
 
-/* ---- step 3: Fields ---- */
-function stepFields(){
-  const chips=F.services.map(s=>`<span class="chip-sel">${s}</span>`).join('')||'<span class="draft-hint">No services selected (go back to step 2)</span>';
-  const prodChips=PRODUCTS.map(p=>`<span class="chip ${F.products.includes(p)?'on':''}" data-p="${esc(p)}"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6.5L4.7 9 10 3" stroke="${F.products.includes(p)?'#C15F3C':'#bbb'}" stroke-width="2" fill="none" stroke-linecap="round"/></svg>${p}</span>`).join('');
-  const ucOpts=USE_CASES.map(u=>`<option ${F.customerUseCase===u?'selected':''}>${u}</option>`).join('');
-  const ucRows=F.useCases.map((u,i)=>`<div class="uc-row" data-i="${i}">
-      <select class="uc-cat">${USE_CASES.map(c=>`<option ${u.cat===c?'selected':''}>${c}</option>`).join('')}</select>
-      <input class="uc-kpi" placeholder="Business value / KPI" value="${esc(u.kpi)}">
-      <button type="button" class="uc-x" data-rm="${i}">✕</button></div>`).join('');
+/* ---- step 3: Commercials ---- */
+function stepCommercials(){
+  const chips=F.services.map(s=>`<span class="chip-sel">${s}</span>`).join('')||'<span class="draft-hint">No services selected (go back to Service Type)</span>';
   return `
   <div class="fld"><label>Selected Services</label><div class="chips">${chips}</div></div>
   <div class="row2">
@@ -534,7 +559,6 @@ function stepFields(){
     <div class="fld"><label>Customer Business Unit</label><input id="f_businessUnit" value="${esc(F.businessUnit)}" placeholder="e.g. Strategy Office"></div>
     <div class="fld"><label>Project Status <span class="req">*</span></label><select id="f_status">${['New','Qualified','Proposal','Negotiation','In Progress','Committed / Won','Complete'].map(s=>`<option ${F.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
   </div>
-
   <div class="sec-tag">Commercials</div>
   <div class="row3">
     <div class="fld"><label>Currency</label><select id="f_currency">${['USD','EUR','GBP','INR'].map(c=>`<option ${F.currency===c?'selected':''}>${c}</option>`).join('')}</select></div>
@@ -542,64 +566,138 @@ function stepFields(){
       <div class="money"><span class="cur" id="curSym">$</span><input id="f_tcv" inputmode="numeric" value="${esc(F.tcv)}" placeholder="0"></div>
       <div class="tcv-read" id="tcvRead"></div></div>
   </div>
-  <div class="row2">
-    <div class="fld"><label>Delivery Model</label><select id="f_deliveryModel">${['Assessment / Discovery','Pilot','Phased Rollout','Full Production','Managed Service'].map(s=>`<option ${F.deliveryModel===s?'selected':''}>${s}</option>`).join('')}</select></div>
-    <div class="fld"><label>Customer Use Case <span class="req">*</span></label><select id="f_customerUseCase">${ucOpts}</select></div>
-  </div>
+  <div class="fld"><label>Delivery Model</label><select id="f_deliveryModel">${['Assessment / Discovery','Pilot','Phased Rollout','Full Production','Managed Service'].map(s=>`<option ${F.deliveryModel===s?'selected':''}>${s}</option>`).join('')}</select></div>
   <div class="row2">
     <div class="fld"><label>Project Start Date</label><input id="f_startDate" type="date" value="${esc(F.startDate)}"></div>
     <div class="fld"><label>Project End Date</label><input id="f_endDate" type="date" value="${esc(F.endDate)}"></div>
-  </div>
+  </div>`;
+}
+function wireCommercials(){
+  const tcv=$('#f_tcv'),cur=$('#f_currency'),sym=$('#curSym'),read=$('#tcvRead');
+  const symMap={USD:'$',EUR:'€',GBP:'£',INR:'₹'};
+  function fmt(){let n=tcv.value.replace(/[^0-9]/g,'');tcv.value=n?Number(n).toLocaleString('en-US'):'';
+    sym.textContent=symMap[cur.value];read.textContent=n?('Total Contract Value: '+money(Number(n),cur.value)):'';}
+  tcv.oninput=fmt;cur.onchange=fmt;fmt();
+}
 
-  <div class="fld"><label>Anthropic Products Involved</label><div class="chips" id="prodChips">${prodChips}</div></div>
+/* ---- step 4: Scope (products + per-product detail, use cases) ---- */
+function stepScope(){
+  const prodChips=PRODUCTS.map(p=>`<span class="chip ${F.products.includes(p)?'on':''}" data-p="${esc(p)}"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6.5L4.7 9 10 3" stroke="${F.products.includes(p)?'#C15F3C':'#bbb'}" stroke-width="2" fill="none" stroke-linecap="round"/></svg>${p}</span>`).join('');
+  const ucOpts=USE_CASES.map(u=>`<option ${F.customerUseCase===u?'selected':''}>${u}</option>`).join('');
+  const ucRows=F.useCases.map((u,i)=>`<div class="uc-row" data-i="${i}">
+      <select class="uc-cat">${USE_CASES.map(c=>`<option ${u.cat===c?'selected':''}>${c}</option>`).join('')}</select>
+      <input class="uc-kpi" placeholder="Business value / KPI" value="${esc(u.kpi)}">
+      <button type="button" class="uc-x" data-rm="${i}">✕</button></div>`).join('');
+  return `
+  <div class="fld"><label>Anthropic Products Involved</label><div class="chips" id="prodChips">${prodChips}</div>
+    <div class="hint">Select the products in scope, then add per-product detail below.</div></div>
+  <div id="prodDetail">${prodDetailHTML()}</div>
+  <div class="fld"><label>Primary Customer Use Case <span class="req">*</span></label><select id="f_customerUseCase">${ucOpts}</select></div>
   <div class="fld"><label>Project Description</label><textarea id="f_projectDescription" placeholder="Describe the engagement…">${esc(F.projectDescription)}</textarea></div>
   <div class="fld"><label>Phased Rollout Plan — Brief Overview</label><textarea id="f_rolloutPlan" placeholder="e.g. Discovery phase, workshop to discuss next steps…">${esc(F.rolloutPlan)}</textarea></div>
-
   <div class="fld"><label>Additional Use-Case Portfolio</label><div id="ucRows">${ucRows}</div>
-    <button type="button" class="uc-add" id="ucAdd">+ Add use case</button></div>
+    <button type="button" class="uc-add" id="ucAdd">+ Add use case</button></div>`;
+}
+function prodDetailHTML(){
+  if(!F.products.length) return '';
+  return `<div class="fld"><label>Per-product detail</label>`+
+    F.products.map(p=>`<div class="uc-row" style="display:block;margin-bottom:8px">
+      <div style="font-size:12.5px;font-weight:600;margin-bottom:5px">${p}</div>
+      <input class="prod-note" data-p="${esc(p)}" value="${esc((F.productNotes||{})[p]||'')}" placeholder="Scope / seats / environment / notes for ${esc(p)}">
+    </div>`).join('')+`</div>`;
+}
+function wireScope(){
+  function bindProdNotes(){document.querySelectorAll('.prod-note').forEach(i=>i.oninput=()=>{F.productNotes=F.productNotes||{};F.productNotes[i.dataset.p]=i.value;});}
+  document.querySelectorAll('#prodChips .chip').forEach(c=>c.onclick=()=>{const p=c.dataset.p;
+    // persist current notes before re-render
+    document.querySelectorAll('.prod-note').forEach(i=>{F.productNotes=F.productNotes||{};F.productNotes[i.dataset.p]=i.value;});
+    if(F.products.includes(p))F.products=F.products.filter(x=>x!==p);else F.products.push(p);
+    c.classList.toggle('on');c.querySelector('path').setAttribute('stroke',F.products.includes(p)?'#C15F3C':'#bbb');
+    $('#prodDetail').innerHTML=prodDetailHTML();bindProdNotes();});
+  bindProdNotes();
+  $('#ucAdd').onclick=()=>{collect();F.useCases.push({cat:'Software Development',kpi:''});renderStep();};
+  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{collect();F.useCases.splice(+b.dataset.rm,1);renderStep();});
+}
 
-  <div class="sec-tag">Contacts</div>
+/* ---- step 5: Contacts ---- */
+function stepContacts(){
+  const codeOpts=DIAL_CODES.map(c=>`<option ${F.pocPhoneCountry===c?'selected':''}>${c}</option>`).join('');
+  return `
+  <div class="sec-tag">Customer POC</div>
   <div class="row2">
     <div class="fld"><label>Customer POC Name <span class="req">*</span></label><input id="f_pocName" value="${esc(F.pocName)}" placeholder="e.g. David"></div>
     <div class="fld"><label>Customer POC Title</label><input id="f_pocTitle" value="${esc(F.pocTitle)}" placeholder="e.g. Head of Transformation"></div>
   </div>
   <div class="row2">
     <div class="fld"><label>Customer POC Email <span class="req">*</span></label><input id="f_pocEmail" type="email" value="${esc(F.pocEmail)}" placeholder="david@company.com"></div>
-    <div class="fld"><label>Customer POC Phone</label><input id="f_pocPhone" value="${esc(F.pocPhone)}" placeholder="+1 …"></div>
+    <div class="fld"><label>Customer POC Phone <span class="hint" style="display:inline">(global country code)</span></label>
+      <div style="display:flex;gap:8px"><select id="f_pocPhoneCountry" style="width:90px">${codeOpts}</select>
+      <input id="f_pocPhone" inputmode="tel" value="${esc(F.pocPhone)}" placeholder="555 123 4567"></div></div>
   </div>
+  <div class="sec-tag">HCLTech Delivery Lead</div>
   <div class="row2">
     <div class="fld"><label>Partner Delivery Lead Name <span class="req">*</span></label><input id="f_leadName" value="${esc(F.leadName)}" placeholder="e.g. Arvind"></div>
     <div class="fld"><label>Partner Delivery Lead Email <span class="req">*</span></label><input id="f_leadEmail" type="email" value="${esc(F.leadEmail)}" placeholder="arvind@hcl.com"></div>
   </div>`;
 }
-function wireFields(){
-  const tcv=$('#f_tcv'),cur=$('#f_currency'),sym=$('#curSym'),read=$('#tcvRead');
-  const symMap={USD:'$',EUR:'€',GBP:'£',INR:'₹'};
-  function fmt(){let n=tcv.value.replace(/[^0-9]/g,'');tcv.value=n?Number(n).toLocaleString('en-US'):'';
-    sym.textContent=symMap[cur.value];read.textContent=n?('Total Contract Value: '+money(Number(n),cur.value)):'';}
-  tcv.oninput=fmt;cur.onchange=fmt;fmt();
-  document.querySelectorAll('#prodChips .chip').forEach(c=>c.onclick=()=>{const p=c.dataset.p;
-    if(F.products.includes(p))F.products=F.products.filter(x=>x!==p);else F.products.push(p);
-    c.classList.toggle('on');c.querySelector('path').setAttribute('stroke',F.products.includes(p)?'#C15F3C':'#bbb');});
-  $('#ucAdd').onclick=()=>{collect();F.useCases.push({cat:'Software Development',kpi:''});renderStep();};
-  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{collect();F.useCases.splice(+b.dataset.rm,1);renderStep();});
+
+/* ---- step 6: Review ---- */
+function stepReview(){
+  const g=(k,d='—')=>esc(F[k]||d);
+  const phone=F.pocPhone?`${esc(F.pocPhoneCountry)} ${esc(F.pocPhone)}`:'—';
+  const ucs=(F.useCases||[]).filter(u=>u.kpi).map(u=>`${u.cat} — ${u.kpi}`).join(' · ')||g('customerUseCase');
+  const prods=(F.products||[]).map(p=>(F.productNotes||{})[p]?`${p} (${(F.productNotes)[p]})`:p).join(', ')||'—';
+  const rows=[['Project / Deal',g('dealName')],['Excalibur ID',g('excaliburId')],['SFDC Opportunity ID',g('sfdcId')],
+    ['Services',(F.services||[]).join(' · ')||'—'],['Customer',g('company')+' · '+g('website')],
+    ['TCV',F.tcv?money(Number(F.tcv),F.currency):'—'],['Status',g('status')],['Delivery Model',g('deliveryModel')],
+    ['Timeline',g('startDate')+' → '+g('endDate')],['Anthropic Products',prods],['Use Cases',ucs],
+    ['Customer POC',g('pocName')+' — '+g('pocEmail')+' · '+phone],['Delivery Lead',g('leadName')+' — '+g('leadEmail')]];
+  return `<div class="review"><div class="rv"><h3>Registration summary</h3>
+    <dl class="kv">${rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('')}</dl></div>
+    <p class="draft-hint" style="margin-top:12px">Review the details above, then submit to route this registration to the Deal Desk${CONFIG&&CONFIG.salesforce?' & Salesforce':''}${CONFIG&&CONFIG.email?' & email the team':''}.</p></div>`;
 }
 
 function collect(){
   const g=id=>{const e=document.getElementById(id);return e?e.value:undefined;};
-  ['dealName','description','linkedDeal','company','website','businessUnit','status','currency','deliveryModel','customerUseCase','startDate','endDate','projectDescription','rolloutPlan','pocName','pocTitle','pocEmail','pocPhone','leadName','leadEmail']
+  ['dealName','description','excaliburId','sfdcId','linkedDeal','company','website','businessUnit','status','currency','deliveryModel','customerUseCase','startDate','endDate','projectDescription','rolloutPlan','pocName','pocTitle','pocEmail','pocPhoneCountry','pocPhone','leadName','leadEmail']
     .forEach(k=>{const v=g('f_'+k);if(v!==undefined)F[k]=v;});
   const t=g('f_tcv');if(t!==undefined)F.tcv=t.replace(/[^0-9]/g,'');
   if(document.getElementById('ucRows')){F.useCases=[...document.querySelectorAll('#ucRows .uc-row')].map(r=>({cat:r.querySelector('.uc-cat').value,kpi:r.querySelector('.uc-kpi').value}));}
+  if(document.querySelector('.prod-note')){F.productNotes=F.productNotes||{};document.querySelectorAll('.prod-note').forEach(i=>F.productNotes[i.dataset.p]=i.value);}
 }
 function validate(){
   let need=[];
   if(step===0) need=[['f_dealName','Deal name']];
   if(step===1){if(F.services.length===0){toast('Select a service','Pick at least one service offering.');return false;}return true;}
-  if(step===2) need=[['f_company','Customer company'],['f_tcv','TCV'],['f_customerUseCase','Use case'],['f_pocName','POC name'],['f_pocEmail','POC email'],['f_leadName','Delivery lead'],['f_leadEmail','Lead email']];
+  if(step===2) need=[['f_company','Customer company'],['f_tcv','TCV']];
+  if(step===3) need=[['f_customerUseCase','Use case']];
+  if(step===4) need=[['f_pocName','POC name'],['f_pocEmail','POC email'],['f_leadName','Delivery lead'],['f_leadEmail','Lead email']];
+  if(step===5) return true;
   let ok=true;need.forEach(([id])=>{const e=document.getElementById(id);if(e&&!e.value.trim()){e.classList.add('invalid');ok=false;}else if(e)e.classList.remove('invalid');});
-  if(!ok)toast('Missing required fields','Complete the highlighted fields.');
+  if(!ok)toast('Missing required fields','Complete the highlighted fields before continuing.');
   return ok;
+}
+/* validate every step from current up to (but not including) target — for stepper jumps forward */
+function validateUpTo(target){
+  const saved=step;let ok=true;
+  for(let s=saved;s<target;s++){step=s;if(!validate()){ok=false;break;}}
+  step=saved;return ok;
+}
+/* data-level full-form validation used on final submit (independent of which step is rendered) */
+function validateAll(){
+  const miss=[];
+  if(!F.dealName) miss.push(['Details','Deal name']);
+  if(!(F.services||[]).length) miss.push(['Service Type','at least one service']);
+  if(!F.company) miss.push(['Commercials','Customer company']);
+  if(!F.tcv) miss.push(['Commercials','TCV']);
+  if(!F.customerUseCase) miss.push(['Scope','Use case']);
+  if(!F.pocName) miss.push(['Contacts','POC name']);
+  if(!F.pocEmail) miss.push(['Contacts','POC email']);
+  if(!F.leadName) miss.push(['Contacts','Delivery lead']);
+  if(!F.leadEmail) miss.push(['Contacts','Lead email']);
+  if(miss.length){toast('Missing required fields',miss.map(m=>m[1]).join(', ')+' — jump back to fix.');
+    step=STEPS.indexOf(miss[0][0]);renderStep();return false;}
+  return true;
 }
 
 /* draft */
@@ -608,7 +706,7 @@ $('#mDraft').onclick=async()=>{collect();
   DRAFT_ID=r.id;$('#draftHint').textContent='Draft saved '+new Date().toLocaleTimeString();toast('Draft saved','You can resume this registration later.');};
 
 /* submit (create) or save (edit) */
-$('#mSubmit').onclick=async()=>{collect();if(!validate())return;
+$('#mSubmit').onclick=async()=>{collect();if(!validateAll())return;
   if(EDIT_CODE){
     const payload={...F,tcv:Number(F.tcv||0),updatedBy:USER.email};
     try{const r=await api('PUT','/api/projects/'+EDIT_CODE,payload);
@@ -675,13 +773,16 @@ async function openDetail(code){
           <div><div class="k">Total Contract Value</div><div class="v">${money(p.tcv,p.currency)}</div></div>
           <div><div class="k">Delivery Model</div><div class="v">${d.deliveryModel||'—'}</div></div>
           <div><div class="k">Business Unit</div><div class="v">${d.businessUnit||'—'}</div></div>
+          <div><div class="k">Excalibur ID</div><div class="v">${d.excaliburId||'—'}</div></div>
+          <div><div class="k">SFDC Opportunity ID</div><div class="v">${d.sfdcId||'—'}</div></div>
           <div><div class="k">Linked Deal</div><div class="v">${d.linkedDeal||'—'}</div></div>
         </div>
       </div>
       <div class="card"><h2>Services & Scope</h2><div class="csub">${(p.services||[]).length} service offering(s)</div>
         <div class="chips">${(p.services||[]).map(s=>`<span class="chip-sel">${s}</span>`).join('')||'—'}</div>
         <div style="margin-top:12px"><div class="k" style="color:var(--slate);font-size:12px">Anthropic Products</div>
-          <div class="chips" style="margin-top:6px">${(d.products||[]).map(s=>`<span class="chip on">${s}</span>`).join('')||'—'}</div></div>
+          <div class="chips" style="margin-top:6px">${(d.products||[]).map(s=>`<span class="chip on">${s}</span>`).join('')||'—'}</div>
+          ${(d.products||[]).some(p=>(d.productNotes||{})[p])?`<div style="margin-top:8px">${(d.products||[]).filter(p=>(d.productNotes||{})[p]).map(p=>`<div class="v" style="font-size:12.5px;font-weight:400;color:var(--ink-2);margin-top:3px">• <b>${p}:</b> ${esc((d.productNotes)[p])}</div>`).join('')}</div>`:''}</div>
         <div style="margin-top:12px"><div class="k" style="color:var(--slate);font-size:12px">Primary Customer Use Case</div><div class="v" style="font-size:13.5px;margin-top:2px">${d.customerUseCase||'—'}</div></div>
         ${(d.useCases||[]).filter(u=>u.kpi).length?`<div style="margin-top:10px"><div class="k" style="color:var(--slate);font-size:12px">Use-Case Portfolio</div>${(d.useCases||[]).map(u=>`<div class="v" style="font-size:13px;margin-top:3px">• ${u.cat}${u.kpi?' — '+u.kpi:''}</div>`).join('')}</div>`:''}
         <div style="margin-top:12px"><div class="k" style="color:var(--slate);font-size:12px">Phased Rollout Plan</div><div class="v" style="font-size:13px;margin-top:2px;font-weight:400;color:var(--ink-2)">${d.rolloutPlan||'—'}</div></div>
@@ -692,7 +793,7 @@ async function openDetail(code){
         <div class="sec-tag">Customer POC</div>
         <div class="info"><div class="v">${d.pocName||'—'}</div><div class="k">${d.pocTitle||''}</div>
           <div class="v" style="margin-top:6px"><a href="mailto:${d.pocEmail||''}">${d.pocEmail||'—'}</a></div>
-          <div class="k">${d.pocPhone||''}</div></div>
+          <div class="k">${d.pocPhone?((d.pocPhoneCountry||'')+' '+d.pocPhone):''}</div></div>
         <div class="sec-tag" style="margin-top:14px">Delivery Lead</div>
         <div class="info"><div class="v">${d.leadName||'—'}</div>
           <div class="v" style="margin-top:4px"><a href="mailto:${d.leadEmail||''}">${d.leadEmail||'—'}</a></div></div>

@@ -406,15 +406,17 @@ class H(BaseHTTPRequestHandler):
             self.wfile.write(data)
 
     def _export_rows(self):
-        cols = [("Project ID", "project_code"), ("Deal Name", "dealName"), ("Customer", "company"),
+        cols = [("Project ID", "project_code"), ("Deal Name", "dealName"), ("Excalibur ID", "excaliburId"),
+                ("SFDC Opportunity ID", "sfdcId"), ("Linked Deal", "linkedDeal"), ("Customer", "company"),
                 ("Website", "website"), ("Business Unit", "businessUnit"), ("Status", "status"),
                 ("Currency", "currency"), ("TCV", "tcv"), ("Services", "services"),
                 ("Primary Use Case", "customerUseCase"), ("Delivery Model", "deliveryModel"),
                 ("Anthropic Products", "products"), ("Start Date", "startDate"), ("End Date", "endDate"),
-                ("Linked Deal", "linkedDeal"), ("POC Name", "pocName"), ("POC Title", "pocTitle"),
-                ("POC Email", "pocEmail"), ("POC Phone", "pocPhone"), ("Delivery Lead", "leadName"),
-                ("Delivery Lead Email", "leadEmail"), ("Project Description", "projectDescription"),
-                ("Rollout Plan", "rolloutPlan"), ("Registered By", "createdBy")]
+                ("POC Name", "pocName"), ("POC Title", "pocTitle"),
+                ("POC Email", "pocEmail"), ("POC Phone Code", "pocPhoneCountry"), ("POC Phone", "pocPhone"),
+                ("Delivery Lead", "leadName"), ("Delivery Lead Email", "leadEmail"),
+                ("Project Description", "projectDescription"), ("Rollout Plan", "rolloutPlan"),
+                ("Registered By", "createdBy")]
         with db() as c:
             recs = c.execute("SELECT * FROM projects ORDER BY id DESC").fetchall()
         headers = [h for h, _ in cols] + ["Created", "Updated"]

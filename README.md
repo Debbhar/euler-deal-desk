@@ -110,7 +110,12 @@ Python 3 (`python3 server.py`).
 
 - **SSO gate** — login restricted to allowed email domains (mock IdP; swap `/api/login` for real SAML/OIDC).
 - **Embedded SQLite** (`dealdesk.db`) — `projects`, `drafts`, `activity` tables. Created automatically.
-- **3-step New Project modal** — Details → Service Type (14-service multi-select) → Fields.
+- **6-step New Project wizard** — Details → Service Type (14-service multi-select) → Commercials →
+  Scope → Contacts → Review. Each step validates its required fields; **Next** advances until the
+  final **Review** page, which has the **Submit** button. Steps are also clickable in the stepper.
+- **Reference IDs** — **Excalibur ID** and **SFDC Opportunity ID** (plus optional Linked Deal ID).
+- **Per-product detail** — each selected Anthropic product gets its own scope/seats/notes field.
+- **International phone** — Customer POC phone has a global country-code selector.
 - **14 service offerings** with descriptions (Rollout & Activation … Platform Migration to Claude).
 - **Commercials** — TCV with currency + live formatting; delivery model; dates; status.
 - **Use cases** — primary Customer Use Case + repeatable use-case portfolio (category + KPI).
@@ -137,8 +142,9 @@ Python 3 (`python3 server.py`).
 
 ## Notes / next steps
 
-- The **Claude** mark and **HCLTech** wordmark are faithful SVG/typographic recreations. Drop the
-  official brand asset files in this folder and reference them if you have approved artwork.
+- **HCLTech logo:** the app looks for `hcltech-logo.svg` in this folder and uses it automatically
+  (top bar + login). If it's absent, it falls back to a typographic `HCLTech™` wordmark. Drop the
+  official asset in as `hcltech-logo.svg` — no code change needed. The **Claude** mark is an SVG recreation.
 - SSO, Salesforce, and email are real and stdlib-only — no SDKs. They activate purely from env vars.
 - For defence-in-depth, verify the Entra `id_token` signature against the tenant JWKS in production
   (`integrations._decode_jwt_payload` currently trusts the token-endpoint response over TLS).
