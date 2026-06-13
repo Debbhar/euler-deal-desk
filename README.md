@@ -28,6 +28,7 @@ because an integration is down — SQLite stays the source of truth).
 |-----|---------|---------|
 | `PORT` | server port | `4610` |
 | `ALLOWED_DOMAINS` | comma list of email domains allowed through the gate | `hcltech.com` |
+| `SUPERADMIN_EMAIL` | seeded super-admin account (can grant admin roles) | `debasis.bharadwaj@hcltech.com` |
 
 ### 1 · HCLTech Azure / Entra ID SSO (OpenID Connect, Auth-Code + PKCE)
 
@@ -117,7 +118,13 @@ Python 3 (`python3 server.py`).
 
 ## What's included
 
-- **SSO gate** — login restricted to allowed email domains (mock IdP; swap `/api/login` for real SAML/OIDC).
+- **SSO gate** — anyone with an allowed-domain email (`hcltech.com` by default) signs in automatically.
+- **Roles & admin** — three roles: **superadmin → admin → user**.
+  - A **super admin** is seeded on first run from `SUPERADMIN_EMAIL` (default `debasis.bharadwaj@hcltech.com`).
+  - **Super admin** can grant/revoke admin, disable/remove any user.
+  - **Admins** can add **manual users** — e.g. external partners *outside* the allowed domain — and enable/disable regular users.
+  - Domain users (`@hcltech.com`) auto-provision as `user` on first login; manual users can have any email.
+  - The **Admin** panel (sidebar) is visible only to admins/superadmin; all `/api/users` actions are role-guarded server-side.
 - **Embedded SQLite** (`dealdesk.db`) — `projects`, `drafts`, `activity` tables. Created automatically.
 - **6-step New Project wizard** — Details → Service Type (14-service multi-select) → Commercials →
   Scope → Contacts → Review. Each step validates its required fields; **Next** advances until the

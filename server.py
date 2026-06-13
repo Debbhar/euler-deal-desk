@@ -25,6 +25,8 @@ PORT = int(os.environ.get("PORT", "4610"))
 WEBHOOK = os.environ.get("DEALDESK_WEBHOOK", "").strip()
 ALLOWED_DOMAINS = [d.strip().lower() for d in
                    os.environ.get("ALLOWED_DOMAINS", "hcltech.com").split(",") if d.strip()]
+SUPERADMIN_EMAIL = os.environ.get("SUPERADMIN_EMAIL", "debasis.bharadwaj@hcltech.com").strip().lower()
+ROLE_RANK = {"user": 1, "admin": 2, "superadmin": 3}
 
 # ---------------------------------------------------------------- DB layer
 def db():
@@ -48,6 +50,18 @@ def init_db():
         c.execute("""CREATE TABLE IF NOT EXISTS activity(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             actor TEXT, action TEXT, detail TEXT, at TEXT)""")
+        c.execute("""CREATE TABLE IF NOT EXISTS users(
+            email TEXT PRIMARY KEY, name TEXT, role TEXT DEFAULT 'user',
+            active INTEGER DEFAULT 1, added_by TEXT, created_at TEXT, last_login TEXT)""")
+        # seed the super admin
+        if SUPERADMIN_EMAIL:
+            row = c.execute("SELECT email FROM users WHERE email=?", (SUPERADMIN_EMAIL,)).fetchone()
+            if row:
+                c.execute("UPDATE users SET role='superadmin', active=1 WHERE email=?", (SUPERADMIN_EMAIL,))
+            else:
+                nm = SUPERADMIN_EMAIL.split("@")[0].replace(".", " ").title()
+                c.execute("INSERT INTO users(email,name,role,active,added_by,created_at) VALUES(?,?,?,?,?,?)",
+                          (SUPERADMIN_EMAIL, nm, "superadmin", 1, "system", now()))
 
 def now():
     return datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
@@ -121,6 +135,32 @@ def _make_xlsx(headers, rows):
         z.writestr("xl/worksheets/sheet1.xml", sheet_xml)
     return buf.getvalue()
 
+def get_user(email):
+    with db() as c:
+        return c.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+
+def upsert_login(email, name):
+    with db() as c:
+        r = c.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+        if r:
+            c.execute("UPDATE users SET last_login=?, name=CASE WHEN COALESCE(name,'')='' THEN ? ELSE name END WHERE email=?",
+                      (now(), name, email))
+            return r["role"]
+        c.execute("INSERT INTO users(email,name,role,active,added_by,created_at,last_login) VALUES(?,?,?,?,?,?,?)",
+                  (email, name, "user", 1, "auto:domain", now(), now()))
+        return "user"
+
+def authorize(email, name):
+    """Return (role, error). Allowed if active manual user OR allowed email domain."""
+    existing = get_user(email)
+    if existing and not existing["active"]:
+        return None, "Your access has been disabled. Contact a Deal Desk admin."
+    dom = email.split("@")[-1] if "@" in email else ""
+    domain_ok = bool(ALLOWED_DOMAINS) and dom in ALLOWED_DOMAINS
+    if not (domain_ok or existing):
+        return None, f"Not authorized. Ask a Deal Desk admin to add {email}."
+    return upsert_login(email, name), None
+
 def forward_webhook(payload):
     if not WEBHOOK:
         return None
@@ -167,6 +207,13 @@ class H(BaseHTTPRequestHandler):
     def _current_user(self):
         tok = self._cookie("euler_sess")
         return SESSIONS.get(tok) if tok else None
+
+    def _require_admin(self, min_role="admin"):
+        u = self._current_user()
+        if not u or ROLE_RANK.get(u.get("role"), 0) < ROLE_RANK[min_role]:
+            self._send(403, {"error": f"{min_role} access required"})
+            return None
+        return u
 
     def _body(self):
         n = int(self.headers.get("Content-Length", 0) or 0)
@@ -216,11 +263,11 @@ class H(BaseHTTPRequestHandler):
             except Exception as e:
                 log("system", "sso_error", str(e))
                 return self._redirect("/?sso_error=exchange")
-            dom = (claims["email"].split("@")[-1] if "@" in claims["email"] else "")
-            if ALLOWED_DOMAINS and dom not in ALLOWED_DOMAINS:
+            role, err = authorize(claims["email"], claims["name"])
+            if err:
                 return self._redirect("/?sso_error=domain")
             tok = secrets.token_hex(24)
-            SESSIONS[tok] = {"email": claims["email"], "name": claims["name"], "via": "azure"}
+            SESSIONS[tok] = {"email": claims["email"], "name": claims["name"], "role": role, "via": "azure"}
             log(claims["email"], "login", "azure-sso")
             return self._redirect("/", f"euler_sess={tok}; Path=/; HttpOnly; SameSite=Lax")
         if p == "/api/stats":
@@ -258,6 +305,12 @@ class H(BaseHTTPRequestHandler):
             with db() as c:
                 rows = c.execute("SELECT * FROM activity ORDER BY id DESC LIMIT 25").fetchall()
             return self._send(200, [dict(r) for r in rows])
+        if p == "/api/users":
+            if not self._require_admin():
+                return
+            with db() as c:
+                rows = c.execute("SELECT email,name,role,active,added_by,created_at,last_login FROM users ORDER BY role DESC, email").fetchall()
+            return self._send(200, [dict(r) for r in rows])
         # static fallback
         return self._file(p.lstrip("/"), None)
 
@@ -269,10 +322,11 @@ class H(BaseHTTPRequestHandler):
             if "@" not in email:
                 return self._send(400, {"error": "Enter a valid email"})
             dom = email.split("@")[-1]
-            if ALLOWED_DOMAINS and dom not in ALLOWED_DOMAINS:
-                return self._send(403, {"error": f"SSO restricted to: {', '.join(ALLOWED_DOMAINS)}"})
             name = email.split("@")[0].replace(".", " ").title()
-            user = {"email": email, "name": name, "domain": dom, "via": "mock"}
+            role, err = authorize(email, name)
+            if err:
+                return self._send(403, {"error": err})
+            user = {"email": email, "name": name, "domain": dom, "role": role, "via": "mock"}
             tok = secrets.token_hex(24)
             SESSIONS[tok] = user
             log(email, "login", "mock")
@@ -283,6 +337,29 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Set-Cookie", f"euler_sess={tok}; Path=/; HttpOnly; SameSite=Lax")
             self.end_headers()
             return self.wfile.write(body)
+        if p == "/api/users":
+            me = self._require_admin()
+            if not me:
+                return
+            email = (b.get("email") or "").strip().lower()
+            name = (b.get("name") or email.split("@")[0].replace(".", " ").title()).strip()
+            role = (b.get("role") or "user").strip()
+            if "@" not in email:
+                return self._send(400, {"error": "Enter a valid email"})
+            if role not in ROLE_RANK:
+                return self._send(400, {"error": "Invalid role"})
+            # only a superadmin can create admins/superadmins
+            if ROLE_RANK[role] > ROLE_RANK["user"] and me["role"] != "superadmin":
+                return self._send(403, {"error": "Only a super admin can add admins"})
+            with db() as c:
+                exists = c.execute("SELECT email FROM users WHERE email=?", (email,)).fetchone()
+                if exists:
+                    c.execute("UPDATE users SET name=?, role=?, active=1 WHERE email=?", (name, role, email))
+                else:
+                    c.execute("INSERT INTO users(email,name,role,active,added_by,created_at) VALUES(?,?,?,?,?,?)",
+                              (email, name, role, 1, me["email"], now()))
+            log(me["email"], "user_added", f"{email} ({role})")
+            return self._send(201, {"ok": True, "email": email, "role": role})
         if p == "/api/projects":
             pc = code()
             ts = now()
@@ -347,6 +424,35 @@ class H(BaseHTTPRequestHandler):
     def do_PUT(self):
         p = self.path.split("?")[0]
         b = self._body()
+        if p.startswith("/api/users/"):
+            me = self._require_admin()
+            if not me:
+                return
+            from urllib.parse import unquote
+            target = unquote(p.rsplit("/", 1)[-1]).lower()
+            tu = get_user(target)
+            if not tu:
+                return self._send(404, {"error": "user not found"})
+            new_role = b.get("role")
+            new_active = b.get("active")
+            # role changes are superadmin-only
+            if new_role is not None:
+                if me["role"] != "superadmin":
+                    return self._send(403, {"error": "Only a super admin can change roles"})
+                if new_role not in ROLE_RANK:
+                    return self._send(400, {"error": "Invalid role"})
+            # admins cannot modify admins/superadmins; nobody can disable a superadmin
+            if me["role"] != "superadmin" and ROLE_RANK.get(tu["role"], 0) >= ROLE_RANK["admin"]:
+                return self._send(403, {"error": "Admins cannot modify other admins"})
+            if new_active == 0 and tu["role"] == "superadmin":
+                return self._send(403, {"error": "Cannot disable a super admin"})
+            with db() as c:
+                if new_role is not None:
+                    c.execute("UPDATE users SET role=? WHERE email=?", (new_role, target))
+                if new_active is not None:
+                    c.execute("UPDATE users SET active=? WHERE email=?", (1 if new_active else 0, target))
+            log(me["email"], "user_updated", f"{target} role={new_role} active={new_active}")
+            return self._send(200, {"ok": True})
         if p.startswith("/api/projects/"):
             pid = p.rsplit("/", 1)[-1]
             ts = now()
@@ -367,6 +473,24 @@ class H(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         p = self.path.split("?")[0]
+        if p.startswith("/api/users/"):
+            me = self._require_admin("superadmin")
+            if not me:
+                return
+            from urllib.parse import unquote
+            target = unquote(p.rsplit("/", 1)[-1]).lower()
+            if target == me["email"]:
+                return self._send(403, {"error": "You cannot remove your own account"})
+            tu = get_user(target)
+            if tu and tu["role"] == "superadmin":
+                with db() as c:
+                    n = c.execute("SELECT COUNT(*) n FROM users WHERE role='superadmin'").fetchone()["n"]
+                if n <= 1:
+                    return self._send(403, {"error": "Cannot remove the last super admin"})
+            with db() as c:
+                c.execute("DELETE FROM users WHERE email=?", (target,))
+            log(me["email"], "user_removed", target)
+            return self._send(200, {"ok": True})
         if p.startswith("/api/projects/"):
             pid = p.rsplit("/", 1)[-1]
             with db() as c:
@@ -451,6 +575,7 @@ if __name__ == "__main__":
     print(f"EULER · Deal Desk  →  http://localhost:{PORT}")
     print(f"  DB: {DB_PATH}")
     print(f"  SSO domains: {', '.join(ALLOWED_DOMAINS) or 'any'}")
+    print(f"  Super admin: {SUPERADMIN_EMAIL}")
     cs = intg.config_status()
     print(f"  SSO mode:   {cs['sso_mode']}   (azure = Entra ID configured)")
     print(f"  Salesforce: {'configured (' + intg.SF_OBJECT + ')' if cs['salesforce'] else 'not configured'}")

@@ -247,6 +247,7 @@ tr.prow:hover{background:var(--ivory);cursor:pointer}
       <div class="nav-item" data-nav="mdf"><svg viewBox="0 0 24 24" fill="none"><path d="M3 7l9-4 9 4-9 4-9-4z" stroke="currentColor" stroke-width="1.6"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4" stroke="currentColor" stroke-width="1.6"/></svg>MDF Requests</div>
       <div class="nav-item" data-nav="reporting"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Customer Reporting</div>
       <div class="nav-item" data-nav="academy"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4L2 9l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.6"/><path d="M6 11v5c0 1 3 3 6 3s6-2 6-3v-5" stroke="currentColor" stroke-width="1.6"/></svg>Partner Academy</div>
+      <div class="nav-item hide" id="navAdmin" data-nav="admin"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.2" stroke="currentColor" stroke-width="1.6"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.6"/></svg>Admin</div>
     </nav>
     <div class="side-user"><span class="av" id="userAv">DB</span><span id="userName">—</span></div>
   </aside>
@@ -405,9 +406,12 @@ async function doMockLogin(){
   try{const r=await api('POST','/api/login',{email});USER=r.user;enterApp();}
   catch(e){$('#loginErr').textContent=e;}
 }
+function isAdmin(){return USER&&(USER.role==='admin'||USER.role==='superadmin');}
 function enterApp(){
   $('#login').classList.add('hide');$('#app').classList.remove('hide');
-  $('#userName').textContent=USER.name; $('#userAv').textContent=USER.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+  $('#userName').textContent=USER.name+(USER.role&&USER.role!=='user'?' · '+USER.role:'');
+  $('#userAv').textContent=USER.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+  $('#navAdmin').classList.toggle('hide',!isAdmin());
   loadProjects(); loadStats();
 }
 async function initAuth(){
@@ -434,6 +438,7 @@ document.querySelectorAll('.nav-item').forEach(n=>n.onclick=()=>{
   const v=n.dataset.nav;
   $('#detailView').classList.add('hide');
   if(v==='services'){$('#servicesView').classList.remove('hide');$('#placeholderView').classList.add('hide');}
+  else if(v==='admin'){$('#servicesView').classList.add('hide');$('#placeholderView').classList.remove('hide');renderAdmin();}
   else{$('#servicesView').classList.add('hide');$('#placeholderView').classList.remove('hide');
     $('#placeholderView').innerHTML=`<div class="page-head"><div><h1>${n.textContent.trim()}</h1><p>This module is part of the EULER Partner Portal.</p></div></div><div class="card"><div class="empty">“${n.textContent.trim()}” — placeholder view. The Deal Desk intake lives under <b>Services → New Project</b>.</div></div>`;}
 });
@@ -815,6 +820,67 @@ async function openDetail(code){
 }
 function lifePct(s,e){if(!s||!e)return 0;const a=new Date(s),b=new Date(e),now=new Date();
   if(now<=a)return 0;if(now>=b)return 100;return Math.round((now-a)/(b-a)*100);}
+
+/* ============================ ADMIN — user management ============================ */
+async function renderAdmin(){
+  const host=$('#placeholderView');
+  const su=USER.role==='superadmin';
+  const roleOpts=(su?['user','admin','superadmin']:['user']).map(r=>`<option value="${r}">${r}</option>`).join('');
+  host.innerHTML=`
+    <div class="page-head"><div><h1>Admin · Users</h1>
+      <p>Anyone with an <b>@hcltech.com</b> email can sign in automatically. Add people outside that domain (e.g. partners) here.${su?' As super admin you can also grant admin roles.':''}</p></div></div>
+    <div class="card">
+      <h2 style="font-size:15px;margin:0 0 12px">Add a user</h2>
+      <div class="row3">
+        <div class="fld"><label>Email <span class="req">*</span></label><input id="au_email" placeholder="name@company.com"></div>
+        <div class="fld"><label>Name</label><input id="au_name" placeholder="Full name (optional)"></div>
+        <div class="fld"><label>Role</label><select id="au_role">${roleOpts}</select></div>
+      </div>
+      <button class="btn btn-primary" id="au_add">＋ Add user</button>
+      ${su?'':'<div class="hint" style="margin-top:8px">Only a super admin can grant admin roles.</div>'}
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="table-top"><b id="uCount">Users</b><span>Roles: super admin · admin · user</span></div>
+      <table><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last login</th><th>Added by</th><th></th></tr></thead>
+      <tbody id="uRows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody></table>
+    </div>`;
+  $('#au_add').onclick=async()=>{
+    const email=$('#au_email').value.trim();if(!email){toast('Email required','');return;}
+    try{await api('POST','/api/users',{email,name:$('#au_name').value.trim(),role:$('#au_role').value});
+      $('#au_email').value='';$('#au_name').value='';toast('User added',email);loadUsers();}
+    catch(e){toast('Could not add user',String(e));}
+  };
+  loadUsers();
+}
+async function loadUsers(){
+  const su=USER.role==='superadmin';
+  let users=[];try{users=await api('GET','/api/users');}catch(e){$('#uRows').innerHTML=`<tr><td colspan="6" class="empty">${e}</td></tr>`;return;}
+  $('#uCount').textContent=`${users.length} user${users.length===1?'':'s'}`;
+  const badge=r=>({superadmin:'b-prog',admin:'b-new',user:'b-done'})[r]||'b-done';
+  $('#uRows').innerHTML=users.map(u=>{
+    const isSelf=u.email===USER.email;
+    const roleCell=su&&!isSelf?`<select data-role="${esc(u.email)}" class="urole" style="padding:5px 8px;font-size:12px">${['user','admin','superadmin'].map(r=>`<option ${u.role===r?'selected':''}>${r}</option>`).join('')}</select>`:`<span class="badge ${badge(u.role)}">${u.role}</span>`;
+    const canToggle=!isSelf&&u.role!=='superadmin'&&(su||u.role==='user');
+    const toggle=canToggle?`<button class="btn btn-ghost" style="padding:5px 10px" data-toggle="${esc(u.email)}" data-active="${u.active}">${u.active?'Disable':'Enable'}</button>`:'';
+    const del=su&&!isSelf&&!(u.role==='superadmin')?`<button class="btn btn-ghost" style="padding:5px 10px;color:var(--clay-dark)" data-del="${esc(u.email)}">Remove</button>`:'';
+    return `<tr><td><b>${esc(u.name||'—')}</b><div style="color:var(--mute);font-size:11px">${esc(u.email)}${isSelf?' · you':''}</div></td>
+      <td>${roleCell}</td>
+      <td><span class="badge ${u.active?'b-done':'b-prog'}">${u.active?'Active':'Disabled'}</span></td>
+      <td style="color:var(--slate)">${u.last_login?u.last_login.slice(0,10):'—'}</td>
+      <td style="color:var(--slate)">${esc(u.added_by||'—')}</td>
+      <td style="text-align:right;white-space:nowrap">${toggle} ${del}</td></tr>`;
+  }).join('')||'<tr><td colspan="6" class="empty">No users.</td></tr>';
+  document.querySelectorAll('.urole').forEach(s=>s.onchange=async()=>{
+    try{await api('PUT','/api/users/'+encodeURIComponent(s.dataset.role),{role:s.value});toast('Role updated','');loadUsers();}
+    catch(e){toast('Failed',String(e));loadUsers();}});
+  document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=async()=>{
+    try{await api('PUT','/api/users/'+encodeURIComponent(b.dataset.toggle),{active:b.dataset.active==='1'?0:1});loadUsers();}
+    catch(e){toast('Failed',String(e));}});
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Remove '+b.dataset.del+'?'))return;
+    try{await api('DELETE','/api/users/'+encodeURIComponent(b.dataset.del));loadUsers();}
+    catch(e){toast('Failed',String(e));}});
+}
 
 /* util */
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
