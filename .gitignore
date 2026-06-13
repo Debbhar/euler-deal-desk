@@ -1,0 +1,17 @@
+# SQLite database + WAL (runtime data — never commit)
+dealdesk.db
+dealdesk.db-wal
+dealdesk.db-shm
+*.sqlite
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.log

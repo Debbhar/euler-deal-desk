@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EULER · Claude Partner Network — Deal Desk</title>
+<style>
+:root{
+  --ivory:#F4F3EE; --paper:#FFFFFF; --content-bg:#F5F4F0;
+  --clay:#D97757; --clay-dark:#C15F3C; --clay-soft:#F6E7DE;
+  --ink:#191915; --ink-2:#3A3A36; --slate:#6E6E68; --mute:#9B9B93;
+  --line:#E6E3DA; --line-2:#EFEDE5;
+  --side:#17171A; --side-2:#1F1F23; --side-hover:#27272C; --side-text:#B7B7B2; --side-active:#FFFFFF;
+  --good:#2E7D52; --blue:#2563EB;
+  --r:14px; --shadow:0 1px 2px rgba(0,0,0,.05),0 10px 30px rgba(0,0,0,.08);
+  --serif:ui-serif,"Iowan Old Style",Georgia,"Times New Roman",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Inter",Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{font-family:var(--sans);color:var(--ink);background:var(--content-bg);font-size:14.5px;-webkit-font-smoothing:antialiased}
+.hide{display:none!important}
+button{font-family:var(--sans);cursor:pointer}
+a{color:var(--blue);text-decoration:none}
+
+/* ============ LOGOS ============ */
+.claude-mark{flex:none}
+.hcltech-wm{font-family:var(--sans);font-weight:800;letter-spacing:-.6px;color:var(--ink);white-space:nowrap}
+.hcltech-wm sup{font-weight:600;font-size:.5em;letter-spacing:0;vertical-align:super}
+
+/* ============ LOGIN ============ */
+#login{position:fixed;inset:0;background:radial-gradient(120% 120% at 50% 0%, #FAF8F2 0%, var(--ivory) 60%);
+  display:flex;align-items:center;justify-content:center;z-index:100;padding:24px}
+.login-card{background:var(--paper);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);
+  width:100%;max-width:420px;padding:38px 34px;text-align:center}
+.login-logos{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:22px}
+.login-logos .sep{width:1px;height:30px;background:var(--line)}
+.login-card h1{font-family:var(--serif);font-size:23px;margin:6px 0 4px}
+.login-card p{color:var(--slate);font-size:13px;margin:0 0 22px}
+.login-card input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:11px;font-size:14px;
+  background:var(--ivory);margin-bottom:12px;outline:none}
+.login-card input:focus{border-color:var(--clay);box-shadow:0 0 0 3px rgba(217,119,87,.13);background:#fff}
+.sso-btn{width:100%;padding:13px;border:none;border-radius:11px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;
+  display:flex;align-items:center;justify-content:center;gap:9px}
+.sso-btn:hover{background:#000}
+.login-err{color:var(--clay-dark);font-size:12.5px;min-height:16px;margin-top:10px}
+.login-foot{margin-top:20px;font-size:11.5px;color:var(--mute)}
+
+/* ============ APP SHELL ============ */
+#app{display:flex;min-height:100vh}
+.sidebar{width:228px;background:var(--side);color:var(--side-text);flex:none;display:flex;flex-direction:column;
+  position:sticky;top:0;height:100vh}
+.side-brand{display:flex;align-items:center;gap:10px;padding:18px 18px 14px;color:#fff;font-weight:700;font-size:17px;letter-spacing:.3px}
+.side-brand .euler-dot{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--clay),#E0a07f);display:grid;place-items:center}
+.nav{padding:6px 10px;flex:1;overflow:auto}
+.nav-item{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;color:var(--side-text);
+  font-size:13.5px;font-weight:500;cursor:pointer;margin-bottom:2px}
+.nav-item:hover{background:var(--side-hover);color:#fff}
+.nav-item.active{background:var(--side-2);color:var(--side-active);box-shadow:inset 2px 0 0 var(--clay)}
+.nav-item svg{width:17px;height:17px;flex:none;opacity:.85}
+.side-user{padding:12px 16px;border-top:1px solid #2a2a2e;display:flex;align-items:center;gap:10px;font-size:12.5px;color:#cfcfca}
+.side-user .av{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#5b6cff,#3aa0ff);display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px;flex:none}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{background:var(--paper);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;
+  padding:11px 22px;position:sticky;top:0;z-index:20}
+.topbar .tb-left{display:flex;align-items:center;gap:14px}
+.cpn{display:flex;align-items:center;gap:9px}
+.cpn .txt{line-height:1.05}.cpn .txt b{font-weight:700;font-size:13.5px}.cpn .txt small{display:block;color:var(--slate);font-size:10.5px}
+.partner-chip{color:var(--slate);font-size:12.5px;border-left:1px solid var(--line);padding-left:14px}
+.tb-right{display:flex;align-items:center;gap:14px}
+.search{background:var(--ivory);border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:13px;width:200px;display:flex;align-items:center;gap:8px;color:var(--mute)}
+.pam{display:flex;align-items:center;gap:6px;background:var(--clay-soft);color:var(--clay-dark);border:1px solid #ECD3C6;border-radius:8px;padding:6px 11px;font-size:12.5px;font-weight:600}
+.tier{font-size:12px;color:var(--slate);display:flex;align-items:center;gap:6px}
+.tier b{color:var(--ink)}
+.ico-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:#fff;display:grid;place-items:center;color:var(--slate)}
+
+.flowbar{background:var(--ink);color:#EDE9E0;display:flex;align-items:center;justify-content:space-between;padding:9px 22px;font-size:13px}
+.flowbar .l{display:flex;align-items:center;gap:9px}
+.flowbar .dot{width:7px;height:7px;border-radius:50%;background:var(--clay)}
+.flowbar .r{display:flex;align-items:center;gap:14px}
+.flowbar .vf{background:#fff;color:var(--ink);border:none;border-radius:7px;padding:5px 12px;font-weight:600;font-size:12px}
+.flowbar .x{background:none;border:none;color:#bbb;font-size:16px}
+
+.content{padding:26px 30px 60px;max-width:1280px;width:100%}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px}
+.page-head h1{font-family:var(--serif);font-size:26px;margin:0 0 4px}
+.page-head p{color:var(--slate);font-size:13.5px;margin:0}
+.btn{border:1px solid transparent;border-radius:10px;padding:10px 16px;font-size:13.5px;font-weight:600;display:inline-flex;align-items:center;gap:7px}
+.btn-primary{background:var(--clay);color:#fff}.btn-primary:hover{background:var(--clay-dark)}
+.btn-dark{background:var(--ink);color:#fff}.btn-dark:hover{background:#000}
+.btn-ghost{background:#fff;border-color:var(--line);color:var(--ink-2)}.btn-ghost:hover{border-color:#d4cfc1}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+.stat{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.stat .lbl{font-size:11px;letter-spacing:.6px;color:var(--mute);font-weight:700;text-transform:uppercase}
+.stat .val{font-size:30px;font-weight:700;margin-top:6px;font-family:var(--serif)}
+.stat .sub{font-size:11.5px;color:var(--slate);margin-top:2px}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:0}
+.tab{padding:10px 14px;font-size:13px;font-weight:600;color:var(--slate);border-bottom:2px solid transparent;cursor:pointer}
+.tab.active{color:var(--ink);border-bottom-color:var(--clay)}
+.table-wrap{background:var(--paper);border:1px solid var(--line);border-top:none;border-radius:0 0 var(--r) var(--r);overflow:hidden}
+.table-top{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line-2);font-size:12.5px;color:var(--slate)}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;letter-spacing:.4px;text-transform:uppercase;color:var(--mute);padding:11px 16px;border-bottom:1px solid var(--line-2);font-weight:700}
+td{padding:13px 16px;border-bottom:1px solid var(--line-2);font-size:13.5px}
+tr:last-child td{border-bottom:none}
+tr.prow:hover{background:var(--ivory);cursor:pointer}
+.badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:600}
+.b-new{background:#EAF1FF;color:#2554c4}.b-prog{background:var(--clay-soft);color:var(--clay-dark)}
+.b-done{background:#E4F4EC;color:#1f7a4d}
+.empty{padding:46px;text-align:center;color:var(--mute);font-size:13.5px}
+
+/* ============ MODAL ============ */
+.overlay{position:fixed;inset:0;background:rgba(20,18,14,.45);display:flex;align-items:flex-start;justify-content:center;
+  padding:48px 16px;z-index:60;overflow:auto}
+.modal{background:var(--paper);border-radius:16px;width:100%;max-width:560px;box-shadow:var(--shadow);display:flex;flex-direction:column;max-height:86vh}
+.modal-h{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 4px}
+.modal-h h2{font-size:17px;margin:0}
+.modal-h .x{background:none;border:none;color:var(--mute);font-size:18px}
+.stepper{display:flex;gap:6px;padding:14px 22px 12px;align-items:center}
+.stp{display:flex;align-items:center;gap:8px;flex:1;font-size:13px;color:var(--mute);font-weight:600;position:relative}
+.stp .c{width:22px;height:22px;border-radius:50%;background:var(--ivory);border:1px solid var(--line);display:grid;place-items:center;font-size:12px;color:var(--slate)}
+.stp.active{color:var(--ink)}.stp.active .c{background:var(--ink);color:#fff;border-color:var(--ink)}
+.stp.done .c{background:var(--good);color:#fff;border-color:var(--good)}
+.stp .bar{flex:1;height:2px;background:var(--line);border-radius:2px}
+.stp.active .bar,.stp.done .bar{background:var(--ink)}
+.modal-b{padding:6px 22px 8px;overflow:auto}
+.modal-f{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 22px;border-top:1px solid var(--line-2)}
+.modal-f .lf{display:flex;gap:8px;align-items:center}
+.draft-hint{font-size:11.5px;color:var(--mute)}
+
+.fld{margin-bottom:14px}
+.fld label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:6px}
+.fld .req{color:var(--clay-dark)}
+.fld input,.fld select,.fld textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:13.5px;
+  background:var(--ivory);outline:none;font-family:var(--sans)}
+.fld textarea{resize:vertical;min-height:78px}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--clay);box-shadow:0 0 0 3px rgba(217,119,87,.13);background:#fff}
+.fld .hint{font-size:11px;color:var(--mute);margin-top:4px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.invalid{border-color:var(--clay)!important;box-shadow:0 0 0 3px rgba(217,119,87,.13)!important}
+
+/* service multi-select */
+.svc-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.svc-col{border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;height:340px}
+.svc-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line-2);font-size:11px;letter-spacing:.4px;text-transform:uppercase;color:var(--mute);font-weight:700}
+.svc-head .cnt{background:var(--ivory);color:var(--slate);border-radius:999px;padding:2px 8px;font-size:11px;letter-spacing:0;text-transform:none}
+.svc-search{padding:8px 10px;border-bottom:1px solid var(--line-2)}
+.svc-search input{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;background:var(--ivory);outline:none}
+.svc-list{overflow:auto;padding:8px;flex:1}
+.svc-item{display:flex;gap:9px;padding:9px 10px;border-radius:9px;cursor:pointer;align-items:flex-start}
+.svc-item:hover{background:var(--ivory)}
+.svc-item .cb{width:16px;height:16px;border:1.5px solid #C7C2B4;border-radius:4px;flex:none;margin-top:2px;display:grid;place-items:center}
+.svc-item.on .cb{background:var(--clay);border-color:var(--clay)}
+.svc-item.on .cb svg{display:block}.svc-item .cb svg{display:none}
+.svc-item .t{font-size:12.5px;font-weight:600;line-height:1.25}
+.svc-item .d{font-size:11px;color:var(--slate);line-height:1.35;margin-top:2px}
+.svc-empty{color:var(--mute);font-size:12px;padding:14px;text-align:center}
+
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
+.chip{border:1px solid var(--line);background:var(--ivory);border-radius:999px;padding:6px 11px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:7px}
+.chip.on{background:var(--clay-soft);border-color:var(--clay);color:var(--clay-dark)}
+.chip-sel{border:1px solid #d9e6ff;background:#EEF4FF;color:#2554c4;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+
+.money{position:relative}.money .cur{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--slate);font-weight:700;font-size:13.5px}
+.money input{padding-left:30px;font-weight:700}
+.tcv-read{font-size:11.5px;color:var(--clay-dark);font-weight:700;margin-top:5px;min-height:14px}
+
+.uc-add{border:1px dashed var(--line);background:var(--ivory);border-radius:9px;padding:8px 12px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.uc-add:hover{border-color:var(--clay);color:var(--clay-dark)}
+.uc-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.uc-row select{flex:1}.uc-row input{flex:1}
+.uc-x{background:none;border:none;color:var(--clay-dark);font-size:16px;flex:none}
+
+.review .rv{background:var(--ivory);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.review h3{font-family:var(--serif);font-size:15px;margin:0 0 10px}
+.kv{display:grid;grid-template-columns:160px 1fr;gap:6px 12px;font-size:12.5px}
+.kv dt{color:var(--slate)}.kv dd{margin:0;font-weight:500}
+
+/* ============ PROJECT DETAIL ============ */
+.detail-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.detail-top .back{display:flex;align-items:center;gap:10px}
+.detail-top h1{font-family:var(--serif);font-size:24px;margin:0;display:flex;align-items:center;gap:10px}
+.detail-grid{display:grid;grid-template-columns:1fr 320px;gap:18px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;margin-bottom:18px}
+.card h2{font-size:16px;margin:0 0 2px}.card .csub{color:var(--slate);font-size:12px;margin-bottom:12px}
+.life{margin:10px 0}
+.life .ends{display:flex;justify-content:space-between;font-size:12px;color:var(--slate);margin-bottom:6px}
+.life .track{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.life .fill{height:100%;background:linear-gradient(90deg,var(--clay),#e7a07f);border-radius:99px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 22px}
+.info .k{font-size:12px;color:var(--slate)}.info .v{font-size:13.5px;font-weight:500;margin-top:2px}
+.sec-tag{display:inline-block;background:var(--ink);color:#fff;font-size:12px;font-weight:600;padding:5px 13px;border-radius:999px;margin:2px 0 12px}
+.activity .ai{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-2);font-size:12.5px}
+.activity .ai:last-child{border:none}
+.activity .av{width:26px;height:26px;border-radius:50%;background:#5b6cff;color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;flex:none}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(140%);background:var(--ink);color:#fff;
+  padding:13px 18px;border-radius:12px;box-shadow:var(--shadow);display:flex;gap:11px;align-items:center;z-index:120;transition:.3s;max-width:92vw}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast .tk{width:22px;height:22px;border-radius:50%;background:var(--clay);display:grid;place-items:center;flex:none}
+.toast b{font-weight:600}.toast small{display:block;opacity:.72;font-size:12px}
+
+@media(max-width:920px){.sidebar{display:none}.stats{grid-template-columns:1fr 1fr}.detail-grid{grid-template-columns:1fr}.svc-grid{grid-template-columns:1fr}}
+@media print{.sidebar,.topbar,.flowbar,.detail-top .btn,#newBtn{display:none!important}.content{padding:0}body{background:#fff}}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN / SSO GATE ============ -->
+<div id="login">
+  <div class="login-card">
+    <div class="login-logos">
+      <span id="loginClaude"></span>
+      <span class="sep"></span>
+      <span class="hcltech-wm" style="font-size:20px">HCLTech<sup>™</sup></span>
+    </div>
+    <h1>Claude Partner Network</h1>
+    <p>Deal Desk · Partner Portal — sign in with your HCLTech identity</p>
+    <input id="loginEmail" type="email" placeholder="you@hcltech.com" autocomplete="email"/>
+    <button class="sso-btn" id="ssoBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 1l9 4v6c0 5-3.8 9.7-9 11-5.2-1.3-9-6-9-11V5l9-4z" stroke="#fff" stroke-width="1.6"/><path d="M8.5 12l2.5 2.5 5-5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Sign in with HCLTech SSO
+    </button>
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-foot">Authorized HCLTech sales users only · Single sign-on enforced</div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hide">
+  <!-- sidebar -->
+  <aside class="sidebar">
+    <div class="side-brand"><span class="euler-dot" id="eulerMark"></span> EULER</div>
+    <nav class="nav" id="nav">
+      <div class="nav-item" data-nav="home"><svg viewBox="0 0 24 24" fill="none"><path d="M3 11l9-8 9 8M5 9v11h14V9" stroke="currentColor" stroke-width="1.6"/></svg>Home</div>
+      <div class="nav-item" data-nav="content"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.6"/></svg>Content</div>
+      <div class="nav-item" data-nav="tasks"><svg viewBox="0 0 24 24" fill="none"><path d="M9 11l2 2 4-4M4 4h16v16H4z" stroke="currentColor" stroke-width="1.6"/></svg>Tasks</div>
+      <div class="nav-item active" data-nav="services"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/></svg>Services</div>
+      <div class="nav-item" data-nav="flows"><svg viewBox="0 0 24 24" fill="none"><path d="M5 6h6M5 12h14M5 18h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Flows</div>
+      <div class="nav-item" data-nav="incentive"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2v20M5 7h9a3 3 0 010 6H7a3 3 0 000 6h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Incentive Plan</div>
+      <div class="nav-item" data-nav="agreements"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l5 5v13H7z" stroke="currentColor" stroke-width="1.6"/><path d="M9 13l2 2 4-4" stroke="currentColor" stroke-width="1.6"/></svg>Agreements</div>
+      <div class="nav-item" data-nav="cf"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.6"/></svg>CF Requests</div>
+      <div class="nav-item" data-nav="mdf"><svg viewBox="0 0 24 24" fill="none"><path d="M3 7l9-4 9 4-9 4-9-4z" stroke="currentColor" stroke-width="1.6"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4" stroke="currentColor" stroke-width="1.6"/></svg>MDF Requests</div>
+      <div class="nav-item" data-nav="reporting"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Customer Reporting</div>
+      <div class="nav-item" data-nav="academy"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4L2 9l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.6"/><path d="M6 11v5c0 1 3 3 6 3s6-2 6-3v-5" stroke="currentColor" stroke-width="1.6"/></svg>Partner Academy</div>
+    </nav>
+    <div class="side-user"><span class="av" id="userAv">DB</span><span id="userName">—</span></div>
+  </aside>
+
+  <!-- main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="tb-left">
+        <div class="cpn"><span id="topClaude"></span><span class="txt"><b>Claude</b><small>Partner Network</small></span></div>
+        <span class="partner-chip">HCL TECHNOLOGIES LIMITED (Partner)</span>
+      </div>
+      <div class="tb-right">
+        <div class="search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4-4" stroke="currentColor" stroke-width="2"/></svg>Search</div>
+        <span class="pam">✦ PAM AI</span>
+        <span class="tier">Current Tier: <b>Registered</b></span>
+        <button class="ico-btn">🔔</button>
+        <button class="ico-btn">⚙</button>
+      </div>
+    </div>
+
+    <div class="flowbar">
+      <div class="l"><span class="dot"></span> New flow available!</div>
+      <div class="r"><button class="vf">View Flow</button><button class="x" onclick="this.closest('.flowbar').style.display='none'">✕</button></div>
+    </div>
+
+    <div class="content">
+      <!-- ===== SERVICES (list) ===== -->
+      <div id="servicesView">
+        <div class="page-head">
+          <div><h1>Services</h1><p>Track and manage your active service projects — register new deals with the Deal Desk.</p></div>
+          <div style="display:flex;gap:8px">
+            <a class="btn btn-ghost" href="/api/export/projects.csv">⬇ CSV</a>
+            <a class="btn btn-ghost" href="/api/export/projects.xlsx">⬇ Excel</a>
+            <button class="btn btn-dark" id="newBtn">＋ New Project</button>
+          </div>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div class="tabs" id="tabs">
+          <div class="tab active" data-tab="all">All Projects</div>
+          <div class="tab" data-tab="New">Not Started</div>
+          <div class="tab" data-tab="In Progress">In Progress</div>
+          <div class="tab" data-tab="Complete">Complete</div>
+          <div class="tab" data-tab="Overdue">Overdue</div>
+        </div>
+        <div class="table-wrap">
+          <div class="table-top"><span id="viewCount">Viewing 0 of 0</span><span>Rows per page 10</span></div>
+          <table>
+            <thead><tr><th>Project</th><th>Customer</th><th>Services</th><th>TCV</th><th>Status</th><th>Created</th></tr></thead>
+            <tbody id="projRows"></tbody>
+          </table>
+          <div class="empty hide" id="emptyState">No projects yet. Click <b>＋ New Project</b> to register a deal.</div>
+        </div>
+      </div>
+
+      <!-- ===== PROJECT DETAIL ===== -->
+      <div id="detailView" class="hide"></div>
+
+      <!-- ===== generic placeholder for other nav ===== -->
+      <div id="placeholderView" class="hide"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ NEW PROJECT MODAL ============ -->
+<div class="overlay hide" id="modal">
+  <div class="modal">
+    <div class="modal-h"><h2>New Project</h2><button class="x" id="mClose">✕</button></div>
+    <div class="stepper" id="stepper">
+      <div class="stp active" data-s="0"><span class="c">1</span> Details</div><span class="bar"></span>
+      <div class="stp" data-s="1"><span class="c">2</span> Service Type</div><span class="bar"></span>
+      <div class="stp" data-s="2"><span class="c">3</span> Fields</div>
+    </div>
+    <div class="modal-b" id="modalBody"></div>
+    <div class="modal-f">
+      <div class="lf">
+        <button class="btn btn-ghost" id="mDraft">Save draft</button>
+        <span class="draft-hint" id="draftHint"></span>
+      </div>
+      <div class="lf">
+        <button class="btn btn-ghost hide" id="mBack">Back</button>
+        <button class="btn btn-dark" id="mNext">Next</button>
+        <button class="btn btn-primary hide" id="mSubmit">Create project</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- toast -->
+<div class="toast" id="toast"><span class="tk"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6.5L4.7 9 10 3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><b id="toastT">Done</b><small id="toastS"></small></span></div>
+
+<script>
+/* ============================ LOGOS ============================ */
+function claudeLogo(size){
+  // Claude "sunburst" mark — radiating clay rays
+  const n=12,rays=[];for(let i=0;i<n;i++){const a=(i/n)*Math.PI*2;const x=Math.cos(a),y=Math.sin(a);
+    rays.push(`<line x1="${50+x*14}" y1="${50+y*14}" x2="${50+x*44}" y2="${50+y*44}" stroke="#D97757" stroke-width="7" stroke-linecap="round"/>`);}
+  return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" aria-label="Claude">${rays.join('')}</svg>`;
+}
+document.getElementById('loginClaude').innerHTML=claudeLogo(34);
+document.getElementById('topClaude').innerHTML=claudeLogo(24);
+document.getElementById('eulerMark').innerHTML=claudeLogo(18);
+
+/* ============================ STATE ============================ */
+let USER=null, TAB='all', PROJECTS=[], DRAFT_ID=null;
+const $=s=>document.querySelector(s);
+const api=async(m,u,b)=>{const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});
+  let j={};try{j=await r.json()}catch(e){}; if(!r.ok) throw (j.error||('HTTP '+r.status)); return j;};
+function toast(t,s){$('#toastT').textContent=t;$('#toastS').textContent=s||'';const e=$('#toast');e.classList.add('show');setTimeout(()=>e.classList.remove('show'),4000);}
+function money(v,cur){const sym={USD:'$',EUR:'€',GBP:'£',INR:'₹'}[cur]||'$';if(!v)return '—';
+  let n=Number(v),t;if(n>=1e9)t=(n/1e9).toFixed(2)+'B';else if(n>=1e6)t=(n/1e6).toFixed(2)+'M';else if(n>=1e3)t=(n/1e3).toFixed(0)+'K';else t=n.toLocaleString();return sym+t;}
+
+/* ============================ DATA ============================ */
+const SERVICES=[
+ ['Rollout & Activation',"Getting Claude live in the customer's environment: SSO and tenant setup, seat provisioning, champion training and enablement, and go-live support."],
+ ['Sustained Adoption / CoE Program',"Standing up and running the customer's AI Center of Excellence or ongoing adoption program that drives usage, enablement, and governance over time."],
+ ['Industry Solution Accelerator Deployment',"Deploying a pre-built, industry-specific Claude accelerator or solution into the customer's environment."],
+ ['Internal Agentic Platform Build',"Building the customer's internal agentic platform or framework with Claude as the core model."],
+ ['Customer-Facing AI Product Build',"Building Claude into the customer's external-facing product or service."],
+ ['Build Prototype / POC',"Contracted prototype or proof of concept delivered against a defined customer use case."],
+ ['AI Strategy & Roadmap',"Paid strategy and roadmap engagement that scopes the customer's Claude program, including priorities, sequencing, and the path forward."],
+ ['AI Readiness & Governance Assessment / Design',"Paid assessment of the customer's AI readiness, governance, or risk posture for adopting Claude."],
+ ['Use-Case Portfolio & Business Case',"Paid engagement that prioritizes Claude use cases and develops the business case behind them."],
+ ['Managed AI Operations',"Operating the customer's Claude workloads in production as a managed service, covering run, monitoring, and SLAs."],
+ ['Ongoing Cowork / Claude Code Scaled User Support',"Ongoing tier-1/2 support and enablement for the customer's Cowork or Claude Code user base."],
+ ['Claude Consumption / FinOps Optimisation',"Ongoing cost and consumption optimization of the customer's Claude usage, including model selection, caching, and rightsizing."],
+ ['Claude Training Sessions',"Structured training on Claude, Claude Code, or Cowork, delivered to the customer's users as a defined curriculum with clear learning outcomes."],
+ ['Platform Migration to Claude',"Contracted migration of a workload from another model or provider onto Claude."],
+];
+const USE_CASES=['Software Development','DevOps & Infrastructure Operations','Data Analysis & Business Intelligence','Document Processing & Extraction','Knowledge Retrieval & Enterprise Search','Content Creation & Copywriting','Customer Support & Service Operations','Sales & Revenue Operations','Conversation & Meeting Intelligence','Research & Intelligence','Cybersecurity & Threat Detection','Trust & Safety / Platform Integrity','Compliance & Regulatory','Education & Learning','Business Process & Operations','Companionship & General Conversation','Personal AI Assistant'];
+const PRODUCTS=['Claude Cowork','Claude Code','Claude API','Claude for Enterprise','Claude in Chrome','MCP / Agents'];
+
+/* form model */
+let F={};
+function blankForm(){return {dealName:'',description:'',partner:'HCL TECHNOLOGIES LIMITED (Partner)',
+  services:[], status:'New', currency:'USD', tcv:'', deliveryModel:'Assessment / Discovery',
+  company:'',website:'',businessUnit:'', projectDescription:'', products:[], rolloutPlan:'',
+  useCases:[{cat:'Software Development',kpi:''}], customerUseCase:'Software Development',
+  pocName:'',pocEmail:'',pocTitle:'',pocPhone:'', leadName:'',leadEmail:'',
+  startDate:'',endDate:'', linkedDeal:''};}
+
+/* ============================ LOGIN / SSO ============================ */
+let CONFIG={sso_mode:'mock'};
+async function doMockLogin(){
+  const email=$('#loginEmail').value.trim();
+  try{const r=await api('POST','/api/login',{email});USER=r.user;enterApp();}
+  catch(e){$('#loginErr').textContent=e;}
+}
+function enterApp(){
+  $('#login').classList.add('hide');$('#app').classList.remove('hide');
+  $('#userName').textContent=USER.name; $('#userAv').textContent=USER.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+  loadProjects(); loadStats();
+}
+async function initAuth(){
+  try{CONFIG=await api('GET','/api/config');}catch(e){}
+  // surface SSO errors passed back on the redirect
+  const err=new URLSearchParams(location.search).get('sso_error');
+  if(err)$('#loginErr').textContent={state:'Sign-in expired, please retry.',exchange:'Microsoft sign-in failed.',domain:'Your account domain is not authorized.'}[err]||'Sign-in error.';
+  // already have a server session?
+  try{const me=await api('GET','/api/me');USER=me.user;return enterApp();}catch(e){}
+  // configure the login screen for the active mode
+  if(CONFIG.sso_mode==='azure'){
+    $('#loginEmail').classList.add('hide');
+    $('#ssoBtn').onclick=()=>{location.href='/api/auth/login';};
+  }else{
+    $('#ssoBtn').onclick=doMockLogin;
+    $('#loginEmail').addEventListener('keydown',e=>{if(e.key==='Enter')doMockLogin();});
+  }
+}
+initAuth();
+
+/* ============================ NAV ============================ */
+document.querySelectorAll('.nav-item').forEach(n=>n.onclick=()=>{
+  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));n.classList.add('active');
+  const v=n.dataset.nav;
+  $('#detailView').classList.add('hide');
+  if(v==='services'){$('#servicesView').classList.remove('hide');$('#placeholderView').classList.add('hide');}
+  else{$('#servicesView').classList.add('hide');$('#placeholderView').classList.remove('hide');
+    $('#placeholderView').innerHTML=`<div class="page-head"><div><h1>${n.textContent.trim()}</h1><p>This module is part of the EULER Partner Portal.</p></div></div><div class="card"><div class="empty">“${n.textContent.trim()}” — placeholder view. The Deal Desk intake lives under <b>Services → New Project</b>.</div></div>`;}
+});
+
+/* ============================ PROJECTS LIST ============================ */
+async function loadStats(){
+  const s=await api('GET','/api/stats');
+  $('#stats').innerHTML=`
+   <div class="stat"><div class="lbl">Total Projects</div><div class="val">${s.total}</div><div class="sub">registered deals</div></div>
+   <div class="stat"><div class="lbl">Total TCV</div><div class="val">${money(s.tcv,'USD')}</div><div class="sub">pipeline value</div></div>
+   <div class="stat"><div class="lbl">In Progress</div><div class="val">${s.in_progress}</div><div class="sub">active</div></div>
+   <div class="stat"><div class="lbl">Complete</div><div class="val">${s.complete}</div><div class="sub">closed</div></div>`;
+}
+async function loadProjects(){PROJECTS=await api('GET','/api/projects');renderRows();}
+function renderRows(){
+  const rows=PROJECTS.filter(p=>TAB==='all'?true:(TAB==='Overdue'?false:p.status===TAB));
+  const tb=$('#projRows');tb.innerHTML='';
+  $('#emptyState').classList.toggle('hide',rows.length>0);
+  $('#viewCount').textContent=`Viewing ${rows.length} of ${PROJECTS.length}`;
+  rows.forEach(p=>{
+    const cls=p.status==='New'?'b-new':(p.status==='Complete'||p.status==='Committed / Won')?'b-done':'b-prog';
+    const tr=document.createElement('tr');tr.className='prow';
+    tr.innerHTML=`<td><b>${p.deal_name||'—'}</b><div style="color:var(--mute);font-size:11px">${p.project_code}</div></td>
+      <td>${p.company||'—'}</td><td style="color:var(--slate)">${(p.services||[]).length} service${(p.services||[]).length===1?'':'s'}</td>
+      <td><b>${money(p.tcv,p.currency)}</b></td><td><span class="badge ${cls}">${p.status}</span></td>
+      <td style="color:var(--slate)">${(p.created_at||'').slice(0,10)}</td>`;
+    tr.onclick=()=>openDetail(p.project_code);
+    tb.appendChild(tr);
+  });
+}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');TAB=t.dataset.tab;renderRows();});
+
+/* ============================ MODAL FLOW ============================ */
+let step=0, EDIT_CODE=null;
+$('#newBtn').onclick=()=>{F=blankForm();DRAFT_ID=null;EDIT_CODE=null;step=0;openModal();};
+$('#mClose').onclick=closeModal;
+function openModal(){$('#modal').classList.remove('hide');
+  $('.modal-h h2').textContent=EDIT_CODE?'Edit Project':'New Project';
+  renderStep();}
+function closeModal(){$('#modal').classList.add('hide');}
+function setStepper(){document.querySelectorAll('.stp').forEach(s=>{const i=+s.dataset.s;s.classList.toggle('active',i===step);s.classList.toggle('done',i<step);});
+  $('#mBack').classList.toggle('hide',step===0);$('#mNext').classList.toggle('hide',step===2);$('#mSubmit').classList.toggle('hide',step!==2);
+  $('#mSubmit').textContent=EDIT_CODE?'Save changes':'Create project';}
+$('#mBack').onclick=()=>{collect();if(step>0){step--;renderStep();}};
+$('#mNext').onclick=()=>{collect();if(validate()){if(step<2){step++;renderStep();}}};
+
+function renderStep(){
+  setStepper();
+  const b=$('#modalBody');
+  if(step===0) b.innerHTML=stepDetails();
+  if(step===1){b.innerHTML=stepServices();wireServices();}
+  if(step===2){b.innerHTML=stepFields();wireFields();}
+}
+
+/* ---- step 1: Details ---- */
+function stepDetails(){return `
+  <div class="fld"><label>Project / Deal Name <span class="req">*</span></label><input id="f_dealName" value="${esc(F.dealName)}" placeholder="e.g. Carrix — Transformation"></div>
+  <div class="fld"><label>Partner</label><input value="${esc(F.partner)}" readonly style="color:var(--slate)"></div>
+  <div class="fld"><label>Description</label><textarea id="f_description" placeholder="Short description of the engagement…">${esc(F.description)}</textarea></div>
+  <div class="fld"><label>Linked Deal ID</label><input id="f_linkedDeal" value="${esc(F.linkedDeal)}" placeholder="CRM / opportunity ID (optional)"></div>`;}
+
+/* ---- step 2: Service Type (14-service multi-select) ---- */
+function stepServices(){return `
+  <div class="svc-grid">
+    <div class="svc-col">
+      <div class="svc-head"><span>Services</span><span class="cnt">${SERVICES.length} services</span></div>
+      <div class="svc-search"><input id="svcSearch" placeholder="Search services…"></div>
+      <div class="svc-list" id="svcList"></div>
+    </div>
+    <div class="svc-col">
+      <div class="svc-head"><span>Selected Services</span><span class="cnt" id="selCnt">0/${SERVICES.length} services</span></div>
+      <div class="svc-list" id="selList"><div class="svc-empty">Select one or more services on the left.</div></div>
+    </div>
+  </div>`;}
+function wireServices(){
+  const list=$('#svcList'),sel=$('#selList'),q=$('#svcSearch');
+  function draw(){
+    const term=(q.value||'').toLowerCase();
+    list.innerHTML=SERVICES.filter(s=>s[0].toLowerCase().includes(term)||s[1].toLowerCase().includes(term))
+      .map(s=>{const on=F.services.includes(s[0]);
+      return `<div class="svc-item ${on?'on':''}" data-t="${esc(s[0])}"><span class="cb"><svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 6.5L4.7 9 10 3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><div class="t">${s[0]}</div><div class="d">${s[1]}</div></div></div>`;}).join('')||'<div class="svc-empty">No matches.</div>';
+    list.querySelectorAll('.svc-item').forEach(it=>it.onclick=()=>{const t=it.dataset.t;
+      if(F.services.includes(t))F.services=F.services.filter(x=>x!==t);else F.services.push(t);draw();drawSel();});
+  }
+  function drawSel(){$('#selCnt').textContent=`${F.services.length}/${SERVICES.length} services`;
+    sel.innerHTML=F.services.length?F.services.map(t=>{const d=SERVICES.find(s=>s[0]===t)[1];
+      return `<div class="svc-item on" data-t="${esc(t)}"><span class="cb"><svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 6.5L4.7 9 10 3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><div class="t">${t}</div><div class="d">${d}</div></div></div>`;}).join('')
+      :'<div class="svc-empty">Select one or more services on the left.</div>';
+    sel.querySelectorAll('.svc-item').forEach(it=>it.onclick=()=>{F.services=F.services.filter(x=>x!==it.dataset.t);draw();drawSel();});}
+  q.oninput=draw;draw();drawSel();
+}
+
+/* ---- step 3: Fields ---- */
+function stepFields(){
+  const chips=F.services.map(s=>`<span class="chip-sel">${s}</span>`).join('')||'<span class="draft-hint">No services selected (go back to step 2)</span>';
+  const prodChips=PRODUCTS.map(p=>`<span class="chip ${F.products.includes(p)?'on':''}" data-p="${esc(p)}"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6.5L4.7 9 10 3" stroke="${F.products.includes(p)?'#C15F3C':'#bbb'}" stroke-width="2" fill="none" stroke-linecap="round"/></svg>${p}</span>`).join('');
+  const ucOpts=USE_CASES.map(u=>`<option ${F.customerUseCase===u?'selected':''}>${u}</option>`).join('');
+  const ucRows=F.useCases.map((u,i)=>`<div class="uc-row" data-i="${i}">
+      <select class="uc-cat">${USE_CASES.map(c=>`<option ${u.cat===c?'selected':''}>${c}</option>`).join('')}</select>
+      <input class="uc-kpi" placeholder="Business value / KPI" value="${esc(u.kpi)}">
+      <button type="button" class="uc-x" data-rm="${i}">✕</button></div>`).join('');
+  return `
+  <div class="fld"><label>Selected Services</label><div class="chips">${chips}</div></div>
+  <div class="row2">
+    <div class="fld"><label>Customer Company Name <span class="req">*</span></label><input id="f_company" value="${esc(F.company)}" placeholder="e.g. Carrix"></div>
+    <div class="fld"><label>Customer Company Website</label><input id="f_website" value="${esc(F.website)}" placeholder="www.company.com"></div>
+  </div>
+  <div class="row2">
+    <div class="fld"><label>Customer Business Unit</label><input id="f_businessUnit" value="${esc(F.businessUnit)}" placeholder="e.g. Strategy Office"></div>
+    <div class="fld"><label>Project Status <span class="req">*</span></label><select id="f_status">${['New','Qualified','Proposal','Negotiation','In Progress','Committed / Won','Complete'].map(s=>`<option ${F.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+  </div>
+
+  <div class="sec-tag">Commercials</div>
+  <div class="row3">
+    <div class="fld"><label>Currency</label><select id="f_currency">${['USD','EUR','GBP','INR'].map(c=>`<option ${F.currency===c?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="fld" style="grid-column:span 2"><label>Total Contract Value (TCV) <span class="req">*</span></label>
+      <div class="money"><span class="cur" id="curSym">$</span><input id="f_tcv" inputmode="numeric" value="${esc(F.tcv)}" placeholder="0"></div>
+      <div class="tcv-read" id="tcvRead"></div></div>
+  </div>
+  <div class="row2">
+    <div class="fld"><label>Delivery Model</label><select id="f_deliveryModel">${['Assessment / Discovery','Pilot','Phased Rollout','Full Production','Managed Service'].map(s=>`<option ${F.deliveryModel===s?'selected':''}>${s}</option>`).join('')}</select></div>
+    <div class="fld"><label>Customer Use Case <span class="req">*</span></label><select id="f_customerUseCase">${ucOpts}</select></div>
+  </div>
+  <div class="row2">
+    <div class="fld"><label>Project Start Date</label><input id="f_startDate" type="date" value="${esc(F.startDate)}"></div>
+    <div class="fld"><label>Project End Date</label><input id="f_endDate" type="date" value="${esc(F.endDate)}"></div>
+  </div>
+
+  <div class="fld"><label>Anthropic Products Involved</label><div class="chips" id="prodChips">${prodChips}</div></div>
+  <div class="fld"><label>Project Description</label><textarea id="f_projectDescription" placeholder="Describe the engagement…">${esc(F.projectDescription)}</textarea></div>
+  <div class="fld"><label>Phased Rollout Plan — Brief Overview</label><textarea id="f_rolloutPlan" placeholder="e.g. Discovery phase, workshop to discuss next steps…">${esc(F.rolloutPlan)}</textarea></div>
+
+  <div class="fld"><label>Additional Use-Case Portfolio</label><div id="ucRows">${ucRows}</div>
+    <button type="button" class="uc-add" id="ucAdd">+ Add use case</button></div>
+
+  <div class="sec-tag">Contacts</div>
+  <div class="row2">
+    <div class="fld"><label>Customer POC Name <span class="req">*</span></label><input id="f_pocName" value="${esc(F.pocName)}" placeholder="e.g. David"></div>
+    <div class="fld"><label>Customer POC Title</label><input id="f_pocTitle" value="${esc(F.pocTitle)}" placeholder="e.g. Head of Transformation"></div>
+  </div>
+  <div class="row2">
+    <div class="fld"><label>Customer POC Email <span class="req">*</span></label><input id="f_pocEmail" type="email" value="${esc(F.pocEmail)}" placeholder="david@company.com"></div>
+    <div class="fld"><label>Customer POC Phone</label><input id="f_pocPhone" value="${esc(F.pocPhone)}" placeholder="+1 …"></div>
+  </div>
+  <div class="row2">
+    <div class="fld"><label>Partner Delivery Lead Name <span class="req">*</span></label><input id="f_leadName" value="${esc(F.leadName)}" placeholder="e.g. Arvind"></div>
+    <div class="fld"><label>Partner Delivery Lead Email <span class="req">*</span></label><input id="f_leadEmail" type="email" value="${esc(F.leadEmail)}" placeholder="arvind@hcl.com"></div>
+  </div>`;
+}
+function wireFields(){
+  const tcv=$('#f_tcv'),cur=$('#f_currency'),sym=$('#curSym'),read=$('#tcvRead');
+  const symMap={USD:'$',EUR:'€',GBP:'£',INR:'₹'};
+  function fmt(){let n=tcv.value.replace(/[^0-9]/g,'');tcv.value=n?Number(n).toLocaleString('en-US'):'';
+    sym.textContent=symMap[cur.value];read.textContent=n?('Total Contract Value: '+money(Number(n),cur.value)):'';}
+  tcv.oninput=fmt;cur.onchange=fmt;fmt();
+  document.querySelectorAll('#prodChips .chip').forEach(c=>c.onclick=()=>{const p=c.dataset.p;
+    if(F.products.includes(p))F.products=F.products.filter(x=>x!==p);else F.products.push(p);
+    c.classList.toggle('on');c.querySelector('path').setAttribute('stroke',F.products.includes(p)?'#C15F3C':'#bbb');});
+  $('#ucAdd').onclick=()=>{collect();F.useCases.push({cat:'Software Development',kpi:''});renderStep();};
+  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{collect();F.useCases.splice(+b.dataset.rm,1);renderStep();});
+}
+
+function collect(){
+  const g=id=>{const e=document.getElementById(id);return e?e.value:undefined;};
+  ['dealName','description','linkedDeal','company','website','businessUnit','status','currency','deliveryModel','customerUseCase','startDate','endDate','projectDescription','rolloutPlan','pocName','pocTitle','pocEmail','pocPhone','leadName','leadEmail']
+    .forEach(k=>{const v=g('f_'+k);if(v!==undefined)F[k]=v;});
+  const t=g('f_tcv');if(t!==undefined)F.tcv=t.replace(/[^0-9]/g,'');
+  if(document.getElementById('ucRows')){F.useCases=[...document.querySelectorAll('#ucRows .uc-row')].map(r=>({cat:r.querySelector('.uc-cat').value,kpi:r.querySelector('.uc-kpi').value}));}
+}
+function validate(){
+  let need=[];
+  if(step===0) need=[['f_dealName','Deal name']];
+  if(step===1){if(F.services.length===0){toast('Select a service','Pick at least one service offering.');return false;}return true;}
+  if(step===2) need=[['f_company','Customer company'],['f_tcv','TCV'],['f_customerUseCase','Use case'],['f_pocName','POC name'],['f_pocEmail','POC email'],['f_leadName','Delivery lead'],['f_leadEmail','Lead email']];
+  let ok=true;need.forEach(([id])=>{const e=document.getElementById(id);if(e&&!e.value.trim()){e.classList.add('invalid');ok=false;}else if(e)e.classList.remove('invalid');});
+  if(!ok)toast('Missing required fields','Complete the highlighted fields.');
+  return ok;
+}
+
+/* draft */
+$('#mDraft').onclick=async()=>{collect();
+  const r=await api('POST','/api/drafts',{id:DRAFT_ID,owner:USER.email,label:F.dealName||'Untitled draft',payload:F});
+  DRAFT_ID=r.id;$('#draftHint').textContent='Draft saved '+new Date().toLocaleTimeString();toast('Draft saved','You can resume this registration later.');};
+
+/* submit (create) or save (edit) */
+$('#mSubmit').onclick=async()=>{collect();if(!validate())return;
+  if(EDIT_CODE){
+    const payload={...F,tcv:Number(F.tcv||0),updatedBy:USER.email};
+    try{const r=await api('PUT','/api/projects/'+EDIT_CODE,payload);
+      closeModal();await loadProjects();await loadStats();
+      toast('Project updated',(F.dealName||'Engagement')+' saved.');
+      openDetail(r.project_code);
+    }catch(e){toast('Update failed',String(e));}
+    return;
+  }
+  const payload={...F,tcv:Number(F.tcv||0),createdBy:USER.email};
+  try{const r=await api('POST','/api/projects',payload);
+    if(DRAFT_ID){await api('DELETE','/api/drafts/'+DRAFT_ID).catch(()=>{});DRAFT_ID=null;}
+    closeModal();await loadProjects();await loadStats();
+    const bits=['saved'];
+    if(r.salesforce&&r.salesforce.ok)bits.push('Salesforce ✓');else if(r.salesforce&&!r.salesforce.skipped)bits.push('Salesforce ✕');
+    if(r.email&&r.email.ok)bits.push('email ✓');else if(r.email&&!r.email.skipped)bits.push('email ✕');
+    toast('Registration submitted',(F.dealName||'Engagement')+' → '+bits.join(' · '));
+    openDetail(r.project_code);
+  }catch(e){toast('Submission failed',String(e));}
+};
+/* open modal in edit mode, prefilled from an existing project */
+async function openEdit(code){
+  const p=await api('GET','/api/projects/'+code);
+  F={...blankForm(),...(p.payload||{})};
+  F.tcv=String(p.tcv||p.payload?.tcv||'');F.currency=p.currency||'USD';F.status=p.status||'New';
+  F.services=p.services||[];
+  if(!F.useCases||!F.useCases.length)F.useCases=[{cat:F.customerUseCase||'Software Development',kpi:''}];
+  EDIT_CODE=p.project_code;DRAFT_ID=null;step=0;openModal();
+}
+
+/* ============================ DETAIL ============================ */
+async function openDetail(code){
+  const p=await api('GET','/api/projects/'+code);const d=p.payload||{};
+  $('#servicesView').classList.add('hide');$('#placeholderView').classList.add('hide');
+  const dv=$('#detailView');dv.classList.remove('hide');
+  const start=d.startDate||p.created_at?.slice(0,10);
+  const pct=lifePct(start,d.endDate);
+  const cls=p.status==='New'?'b-new':(p.status==='Complete'||p.status==='Committed / Won')?'b-done':'b-prog';
+  dv.innerHTML=`
+  <div class="detail-top">
+    <div class="back"><button class="btn btn-ghost" id="backBtn">← Services</button>
+      <h1>${p.deal_name||'Project'} <span class="badge ${cls}">${p.status}</span></h1></div>
+    <div class="lf" style="display:flex;gap:8px">
+      <button class="btn btn-dark" id="editBtn">✎ Edit</button>
+      <a class="btn btn-ghost" href="/api/export/projects.csv">⬇ CSV</a>
+      <a class="btn btn-ghost" href="/api/export/projects.xlsx">⬇ Excel</a>
+      <button class="btn btn-ghost" id="pdfBtn">⬇ PDF</button>
+      <button class="btn btn-ghost" id="crmBtn">⤴ CRM</button>
+      <button class="btn btn-primary" id="delBtn">Delete</button>
+    </div>
+  </div>
+  <div style="color:var(--mute);font-size:12px;margin-bottom:16px">Project ID ${p.project_code} · Created ${(p.created_at||'').slice(0,16).replace('T',' ')} · by ${p.created_by||'—'}</div>
+  <div class="detail-grid">
+    <div>
+      <div class="card"><h2>Project Lifecycle</h2>
+        <div class="life"><div class="ends"><span>${start||'—'}</span><span>${d.endDate||'—'}</span></div>
+          <div class="track"><div class="fill" style="width:${pct}%"></div></div>
+          <div style="text-align:right;font-size:12px;color:var(--slate);margin-top:6px">${pct}% through the timeline</div></div>
+      </div>
+      <div class="card"><h2>Project Info</h2><div class="csub">Deal & commercial summary</div>
+        <div class="info-grid info">
+          <div><div class="k">Customer</div><div class="v">${d.company||'—'}</div></div>
+          <div><div class="k">Website</div><div class="v">${d.website||'—'}</div></div>
+          <div><div class="k">Total Contract Value</div><div class="v">${money(p.tcv,p.currency)}</div></div>
+          <div><div class="k">Delivery Model</div><div class="v">${d.deliveryModel||'—'}</div></div>
+          <div><div class="k">Business Unit</div><div class="v">${d.businessUnit||'—'}</div></div>
+          <div><div class="k">Linked Deal</div><div class="v">${d.linkedDeal||'—'}</div></div>
+        </div>
+      </div>
+      <div class="card"><h2>Services & Scope</h2><div class="csub">${(p.services||[]).length} service offering(s)</div>
+        <div class="chips">${(p.services||[]).map(s=>`<span class="chip-sel">${s}</span>`).join('')||'—'}</div>
+        <div style="margin-top:12px"><div class="k" style="color:var(--slate);font-size:12px">Anthropic Products</div>
+          <div class="chips" style="margin-top:6px">${(d.products||[]).map(s=>`<span class="chip on">${s}</span>`).join('')||'—'}</div></div>
+        <div style="margin-top:12px"><div class="k" style="color:var(--slate);font-size:12px">Primary Customer Use Case</div><div class="v" style="font-size:13.5px;margin-top:2px">${d.customerUseCase||'—'}</div></div>
+        ${(d.useCases||[]).filter(u=>u.kpi).length?`<div style="margin-top:10px"><div class="k" style="color:var(--slate);font-size:12px">Use-Case Portfolio</div>${(d.useCases||[]).map(u=>`<div class="v" style="font-size:13px;margin-top:3px">• ${u.cat}${u.kpi?' — '+u.kpi:''}</div>`).join('')}</div>`:''}
+        <div style="margin-top:12px"><div class="k" style="color:var(--slate);font-size:12px">Phased Rollout Plan</div><div class="v" style="font-size:13px;margin-top:2px;font-weight:400;color:var(--ink-2)">${d.rolloutPlan||'—'}</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="card"><h2>Contacts</h2>
+        <div class="sec-tag">Customer POC</div>
+        <div class="info"><div class="v">${d.pocName||'—'}</div><div class="k">${d.pocTitle||''}</div>
+          <div class="v" style="margin-top:6px"><a href="mailto:${d.pocEmail||''}">${d.pocEmail||'—'}</a></div>
+          <div class="k">${d.pocPhone||''}</div></div>
+        <div class="sec-tag" style="margin-top:14px">Delivery Lead</div>
+        <div class="info"><div class="v">${d.leadName||'—'}</div>
+          <div class="v" style="margin-top:4px"><a href="mailto:${d.leadEmail||''}">${d.leadEmail||'—'}</a></div></div>
+      </div>
+      <div class="card activity"><h2>Recent Activity</h2>
+        <div class="ai"><span class="av">${(p.created_by||'U')[0].toUpperCase()}</span><div><b>Project created</b><div style="color:var(--mute)">${(p.created_at||'').slice(0,16).replace('T',' ')}</div></div></div>
+      </div>
+    </div>
+  </div>`;
+  $('#backBtn').onclick=()=>{dv.classList.add('hide');$('#servicesView').classList.remove('hide');};
+  $('#editBtn').onclick=()=>openEdit(p.project_code);
+  $('#pdfBtn').onclick=()=>window.print();
+  $('#crmBtn').onclick=async()=>{const r=await api('POST','/api/export/crm',{data:{...d,tcv:p.tcv,currency:p.currency,status:p.status,services:p.services}});
+    const blob=new Blob([JSON.stringify(r.crm_record,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=p.project_code+'_crm.json';a.click();
+    toast('Exported to CRM',r.webhook_status?'Pushed to CRM webhook + downloaded JSON.':'CRM record downloaded (set DEALDESK_WEBHOOK to auto-push).');};
+  $('#delBtn').onclick=async()=>{if(!confirm('Delete this project?'))return;await api('DELETE','/api/projects/'+p.project_code);
+    dv.classList.add('hide');$('#servicesView').classList.remove('hide');await loadProjects();await loadStats();toast('Project deleted','');};
+}
+function lifePct(s,e){if(!s||!e)return 0;const a=new Date(s),b=new Date(e),now=new Date();
+  if(now<=a)return 0;if(now>=b)return 100;return Math.round((now-a)/(b-a)*100);}
+
+/* util */
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+# One-click deploy to Render → gives a public shareable URL (https://<name>.onrender.com)
+# In the Render dashboard, add the secret env vars (Azure / Salesforce / Graph) under the service.
+services:
+  - type: web
+    name: euler-deal-desk
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: ALLOWED_DOMAINS
+        value: hcltech.com
+      # SQLite persists only if you attach a disk (paid plans). For the free tier,
+      # data resets on each deploy — fine for a pilot. To persist:
+      #   add a Disk mounted at /data and set DB_PATH=/data/dealdesk.db
+      # - key: DB_PATH
+      #   value: /data/dealdesk.db
+    # disk:                      # uncomment on a paid plan for persistent SQLite
+    #   name: dealdesk-data
+    #   mountPath: /data
+    #   sizeGB: 1
