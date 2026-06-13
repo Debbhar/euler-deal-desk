@@ -5,6 +5,10 @@ Partner Portal flow (Services → New Project → Details → Service Type → F
 
 **Zero dependencies** — Python standard library only, with an **embedded SQLite** database.
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Debbhar/euler-deal-desk)
+
+> One click → a permanent public login link (`https://<name>.onrender.com`) to share with the sales team.
+
 ## Run
 
 ```bash
@@ -90,12 +94,17 @@ The app is a single self-contained web service. To give HCLTech users a public U
 sign into and edit deals:
 
 ### Render (recommended — free tier, public HTTPS URL)
-1. Push this repo to GitHub (see below).
-2. In Render → **New → Blueprint**, point at the repo. `render.yaml` provisions a Docker web
-   service and gives you `https://euler-deal-desk.onrender.com`.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Debbhar/euler-deal-desk)
+
+1. Click the button above (or Render → **New → Blueprint** pointed at this repo). `render.yaml`
+   provisions a Docker web service and gives you `https://euler-deal-desk.onrender.com`.
+2. Sign in with GitHub and authorize Render for `Debbhar/euler-deal-desk`, then **Apply**.
 3. Add the secret env vars (Azure / Salesforce / Graph) in the service dashboard.
 4. Set `AZURE_REDIRECT_URI` to `https://<your-render-url>/api/auth/callback` and add that same
    URL as a redirect URI in the Entra app registration.
+
+That public URL is the permanent shareable login link to put in emails.
 
 > Free-tier note: the filesystem is ephemeral, so SQLite resets on each redeploy. For a pilot
 > that's fine. For persistence, attach a Render **Disk** at `/data` and set `DB_PATH=/data/dealdesk.db`
