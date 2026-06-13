@@ -839,6 +839,17 @@ async function renderAdmin(){
       <button class="btn btn-primary" id="au_add">＋ Add user</button>
       ${su?'':'<div class="hint" style="margin-top:8px">Only a super admin can grant admin roles.</div>'}
     </div>
+    <div class="card">
+      <h2 style="font-size:15px;margin:0 0 4px">Bulk upload (CSV)</h2>
+      <p class="hint" style="margin:0 0 12px">Temporary onboarding until Azure SSO (Entra ID) is in place — upload a CSV of group user IDs.
+        Columns: <code>email,name,role</code> (name &amp; role optional; role defaults to <b>user</b>).${su?'':' Admin roles in the file are downgraded to user unless uploaded by a super admin.'}</p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <a class="btn btn-ghost" href="/api/users/template.csv">⬇ Download template</a>
+        <input type="file" id="bulkFile" accept=".csv,text/csv" style="font-size:13px">
+        <button class="btn btn-dark" id="bulkBtn">Upload CSV</button>
+      </div>
+      <div class="hint" id="bulkResult" style="margin-top:10px"></div>
+    </div>
     <div class="card" style="padding:0;overflow:hidden">
       <div class="table-top"><b id="uCount">Users</b><span>Roles: super admin · admin · user</span></div>
       <table><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last login</th><th>Added by</th><th></th></tr></thead>
@@ -849,6 +860,18 @@ async function renderAdmin(){
     try{await api('POST','/api/users',{email,name:$('#au_name').value.trim(),role:$('#au_role').value});
       $('#au_email').value='';$('#au_name').value='';toast('User added',email);loadUsers();}
     catch(e){toast('Could not add user',String(e));}
+  };
+  $('#bulkBtn').onclick=async()=>{
+    const f=$('#bulkFile').files[0];
+    if(!f){toast('Choose a CSV file first','');return;}
+    const text=await f.text();
+    try{const r=await api('POST','/api/users/bulk',{csv:text});const x=r.result;
+      const parts=[`added ${x.added}`,`updated ${x.updated}`];
+      if(x.downgraded)parts.push(`${x.downgraded} downgraded to user`);
+      if(x.skipped.length)parts.push(`${x.skipped.length} skipped`);
+      $('#bulkResult').innerHTML='✓ '+parts.join(' · ')+(x.skipped.length?'<br>Skipped: '+x.skipped.map(s=>`row ${s.row} (${esc(s.reason)})`).join(', '):'');
+      toast('CSV processed',parts.join(' · '));$('#bulkFile').value='';loadUsers();
+    }catch(e){toast('Upload failed',String(e));$('#bulkResult').textContent=String(e);}
   };
   loadUsers();
 }

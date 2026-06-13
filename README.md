@@ -125,6 +125,10 @@ Python 3 (`python3 server.py`).
   - **Admins** can add **manual users** — e.g. external partners *outside* the allowed domain — and enable/disable regular users.
   - Domain users (`@hcltech.com`) auto-provision as `user` on first login; manual users can have any email.
   - The **Admin** panel (sidebar) is visible only to admins/superadmin; all `/api/users` actions are role-guarded server-side.
+  - **Bulk CSV upload** (Admin panel) — onboard a batch of users from a CSV of group user IDs while
+    Azure SSO is being set up. Columns `email,name,role` (header optional; role defaults to `user`).
+    Admin-role rows are only honored when a **super admin** uploads — otherwise downgraded to `user`.
+    A template is downloadable from the panel (`/api/users/template.csv`).
 - **Embedded SQLite** (`dealdesk.db`) — `projects`, `drafts`, `activity` tables. Created automatically.
 - **6-step New Project wizard** — Details → Service Type (14-service multi-select) → Commercials →
   Scope → Contacts → Review. Each step validates its required fields; **Next** advances until the

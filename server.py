@@ -161,6 +161,45 @@ def authorize(email, name):
         return None, f"Not authorized. Ask a Deal Desk admin to add {email}."
     return upsert_login(email, name), None
 
+def parse_user_csv(text, requester_role, actor):
+    """Bulk-add users from CSV. Columns: email[,name][,role]. Header optional.
+    Role escalation (admin/superadmin) only honored when requester is superadmin."""
+    import csv, io
+    rows = [r for r in csv.reader(io.StringIO(text)) if any((c or "").strip() for c in r)]
+    out = {"added": 0, "updated": 0, "downgraded": 0, "skipped": []}
+    if not rows:
+        return out
+    ei, ni, ri = 0, 1, 2
+    if "@" not in (rows[0][0] if rows[0] else ""):           # header row present
+        hdr = [h.strip().lower() for h in rows[0]]
+        idx = {h: i for i, h in enumerate(hdr)}
+        ei = idx.get("email", idx.get("user", idx.get("userid", idx.get("user id", 0))))
+        ni = idx.get("name"); ri = idx.get("role")
+        rows = rows[1:]
+    with db() as c:
+        for n, r in enumerate(rows, 1):
+            email = (r[ei].strip().lower() if ei is not None and ei < len(r) else "")
+            if "@" not in email:
+                out["skipped"].append({"row": n, "value": (r[ei] if ei < len(r) else ""), "reason": "not an email"})
+                continue
+            name = (r[ni].strip() if ni is not None and ni < len(r) and r[ni].strip()
+                    else email.split("@")[0].replace(".", " ").title())
+            role = (r[ri].strip().lower() if ri is not None and ri < len(r) and r[ri].strip() else "user")
+            if role not in ROLE_RANK:
+                role = "user"
+            if ROLE_RANK[role] > ROLE_RANK["user"] and requester_role != "superadmin":
+                role = "user"; out["downgraded"] += 1
+            ex = c.execute("SELECT email FROM users WHERE email=?", (email,)).fetchone()
+            if ex:
+                c.execute("UPDATE users SET name=?, role=?, active=1 WHERE email=?", (name, role, email))
+                out["updated"] += 1
+            else:
+                c.execute("INSERT INTO users(email,name,role,active,added_by,created_at) VALUES(?,?,?,?,?,?)",
+                          (email, name, role, 1, "csv:" + actor, now()))
+                out["added"] += 1
+    log(actor, "users_bulk_upload", f'added={out["added"]} updated={out["updated"]} skipped={len(out["skipped"])}')
+    return out
+
 def forward_webhook(payload):
     if not WEBHOOK:
         return None
@@ -305,6 +344,14 @@ class H(BaseHTTPRequestHandler):
             with db() as c:
                 rows = c.execute("SELECT * FROM activity ORDER BY id DESC LIMIT 25").fetchall()
             return self._send(200, [dict(r) for r in rows])
+        if p == "/api/users/template.csv":
+            if not self._require_admin():
+                return
+            tmpl = ("email,name,role\n"
+                    "jane.rep@hcltech.com,Jane Rep,user\n"
+                    "team.lead@hcltech.com,Team Lead,admin\n"
+                    "partner.contact@external.com,Partner Contact,user\n")
+            return self._download(tmpl, "deal-desk-users-template.csv", "text/csv")
         if p == "/api/users":
             if not self._require_admin():
                 return
@@ -337,6 +384,14 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Set-Cookie", f"euler_sess={tok}; Path=/; HttpOnly; SameSite=Lax")
             self.end_headers()
             return self.wfile.write(body)
+        if p == "/api/users/bulk":
+            me = self._require_admin()
+            if not me:
+                return
+            csv_text = b.get("csv") or ""
+            if not csv_text.strip():
+                return self._send(400, {"error": "Empty CSV"})
+            return self._send(200, {"ok": True, "result": parse_user_csv(csv_text, me["role"], me["email"])})
         if p == "/api/users":
             me = self._require_admin()
             if not me:
