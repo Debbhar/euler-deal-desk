@@ -29,6 +29,7 @@ because an integration is down — SQLite stays the source of truth).
 | `PORT` | server port | `4610` |
 | `ALLOWED_DOMAINS` | comma list of email domains allowed through the gate | `hcltech.com` |
 | `SUPERADMIN_EMAIL` | seeded super-admin account (can grant admin roles) | `debasis.bharadwaj@hcltech.com` |
+| `RESTRICT_TO_LISTED_USERS` | `1` = invitation-only (only users in the table/CSV may sign in); `0` = any allowed-domain email | `0` |
 
 ### 1 · HCLTech Azure / Entra ID SSO (OpenID Connect, Auth-Code + PKCE)
 

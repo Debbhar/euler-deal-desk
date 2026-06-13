@@ -360,8 +360,22 @@ document.getElementById('topHcl').innerHTML=hcltechLogo(22);
 /* ============================ STATE ============================ */
 let USER=null, TAB='all', PROJECTS=[], DRAFT_ID=null;
 const $=s=>document.querySelector(s);
-const api=async(m,u,b)=>{const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});
-  let j={};try{j=await r.json()}catch(e){}; if(!r.ok) throw (j.error||('HTTP '+r.status)); return j;};
+const GATEWAY_MSG='The secure link is reconnecting. Please wait a moment and try again.';
+const api=async(m,u,b)=>{
+  let r;
+  try{r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});}
+  catch(e){throw 'Network error — '+GATEWAY_MSG;}
+  let j={},parsed=false;try{j=await r.json();parsed=true;}catch(e){}
+  if(!r.ok){
+    if(j.error) throw j.error;                       // our app's friendly message
+    if([403,429,500,502,503,504].includes(r.status)&&!parsed) throw GATEWAY_MSG; // gateway/tunnel hiccup
+    throw 'HTTP '+r.status;
+  }
+  return j;
+};
+// retry a call up to n times for transient (non-app) gateway errors
+const apiRetry=async(m,u,b,n=2)=>{let last;for(let i=0;i<=n;i++){try{return await api(m,u,b);}
+  catch(e){last=e;if(String(e).includes('reconnecting')||String(e).includes('Network error')){await new Promise(s=>setTimeout(s,800));continue;}throw e;}}throw last;};
 function toast(t,s){$('#toastT').textContent=t;$('#toastS').textContent=s||'';const e=$('#toast');e.classList.add('show');setTimeout(()=>e.classList.remove('show'),4000);}
 function money(v,cur){const sym={USD:'$',EUR:'€',GBP:'£',INR:'₹'}[cur]||'$';if(!v)return '—';
   let n=Number(v),t;if(n>=1e9)t=(n/1e9).toFixed(2)+'B';else if(n>=1e6)t=(n/1e6).toFixed(2)+'M';else if(n>=1e3)t=(n/1e3).toFixed(0)+'K';else t=n.toLocaleString();return sym+t;}
@@ -403,8 +417,11 @@ function blankForm(){return {dealName:'',description:'',partner:'HCL TECHNOLOGIE
 let CONFIG={sso_mode:'mock'};
 async function doMockLogin(){
   const email=$('#loginEmail').value.trim();
-  try{const r=await api('POST','/api/login',{email});USER=r.user;enterApp();}
+  const btn=$('#ssoBtn');const orig=btn.innerHTML;
+  $('#loginErr').textContent='';btn.disabled=true;btn.textContent='Signing in…';
+  try{const r=await apiRetry('POST','/api/login',{email});USER=r.user;enterApp();}
   catch(e){$('#loginErr').textContent=e;}
+  finally{btn.disabled=false;btn.innerHTML=orig;}
 }
 function isAdmin(){return USER&&(USER.role==='admin'||USER.role==='superadmin');}
 function enterApp(){

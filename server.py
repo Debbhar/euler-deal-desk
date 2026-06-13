@@ -27,6 +27,10 @@ ALLOWED_DOMAINS = [d.strip().lower() for d in
                    os.environ.get("ALLOWED_DOMAINS", "hcltech.com").split(",") if d.strip()]
 SUPERADMIN_EMAIL = os.environ.get("SUPERADMIN_EMAIL", "debasis.bharadwaj@hcltech.com").strip().lower()
 ROLE_RANK = {"user": 1, "admin": 2, "superadmin": 3}
+# When True, ONLY users present (and active) in the users table may sign in — domain alone
+# is not enough. Keep False so any @hcltech.com email works (pre-SSO). Flip on once your
+# allow-list/CSV is loaded for a true invitation-only gate.
+RESTRICT_TO_LISTED = os.environ.get("RESTRICT_TO_LISTED_USERS", "0").strip().lower() in ("1", "true", "yes", "on")
 
 # ---------------------------------------------------------------- DB layer
 def db():
@@ -157,6 +161,8 @@ def authorize(email, name):
         return None, "Your access has been disabled. Contact a Deal Desk admin."
     dom = email.split("@")[-1] if "@" in email else ""
     domain_ok = bool(ALLOWED_DOMAINS) and dom in ALLOWED_DOMAINS
+    if RESTRICT_TO_LISTED and not existing:
+        return None, f"Access is by invitation only. Ask a Deal Desk admin to add {email}."
     if not (domain_ok or existing):
         return None, f"Not authorized. Ask a Deal Desk admin to add {email}."
     return upsert_login(email, name), None
@@ -631,6 +637,7 @@ if __name__ == "__main__":
     print(f"  DB: {DB_PATH}")
     print(f"  SSO domains: {', '.join(ALLOWED_DOMAINS) or 'any'}")
     print(f"  Super admin: {SUPERADMIN_EMAIL}")
+    print(f"  Login gate:  {'INVITATION-ONLY (listed users)' if RESTRICT_TO_LISTED else 'open to ' + (', '.join(ALLOWED_DOMAINS) or 'any domain')}")
     cs = intg.config_status()
     print(f"  SSO mode:   {cs['sso_mode']}   (azure = Entra ID configured)")
     print(f"  Salesforce: {'configured (' + intg.SF_OBJECT + ')' if cs['salesforce'] else 'not configured'}")
